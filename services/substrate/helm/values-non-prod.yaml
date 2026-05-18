@@ -1,0 +1,37 @@
+# Non-prod overrides for the substrate Helm chart.
+# Applied by ArgoCD on top of values.yaml. Update argocd-apps/substrate.yaml
+# to add this file under spec.source.helm.valueFiles when ready to deploy.
+
+replicaCount: 1
+image:
+  repository: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-substrate
+  # Tag is set by CI on each release (e.g. main-<short-sha>); use `latest` for non-prod rolling.
+  tag: "491fe25"
+# External Secrets pull from non-prod AWS Secrets Manager paths.
+externalSecrets:
+  refreshInterval: 5m
+  secrets:
+    - name: substrate-secrets
+      remoteRef:
+        key: aeos/non-prod/substrate
+env:
+  PLATFORM_ENV: non-prod
+  # In-cluster service DNS for downstream dependencies. Concrete values
+  # (DB URL, JWT secrets) are injected via External Secrets above.
+  AUTH_SERVICE_URL: http://aeos-substrate.substrate.svc.cluster.local:3002
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 384Mi
+# Override the migrate init container to use the same ECR image as the main
+# container (defaults to REPLACE_WITH_ECR_REPO/... in values.yaml).
+initContainers:
+  - name: migrate
+    image: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-substrate:491fe25
+    command: ["npx", "prisma", "migrate", "deploy"]
+    envFrom:
+      - secretRef:
+          name: substrate-secrets

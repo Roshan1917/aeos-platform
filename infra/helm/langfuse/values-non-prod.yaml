@@ -1,0 +1,9 @@
+# Non-prod overrides for aeos-langfuse chart.
+
+secret:
+  awsName: aeos/non-prod/platform/langfuse
+
+langfuse:
+  langfuse:
+    nextauth:
+      url: "https://staging-langfuse.aeos.fuzebox.ai"

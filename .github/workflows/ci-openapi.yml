@@ -1,0 +1,50 @@
+name: OpenAPI Lint
+
+# Lints each TS service's OpenAPI spec on every PR. Catches structural errors
+# (missing schemas, broken refs, invalid path params) without booting the
+# service. The spec is dumped via `pnpm openapi:dump` and piped to Redocly.
+
+on:
+  pull_request:
+    paths:
+      - 'services/substrate/src/openapi.ts'
+      - 'services/test-generator/src/openapi.ts'
+      - 'services/discovery/src/openapi.ts'
+      - 'services/*/scripts/dump-openapi.ts'
+      - 'packages/openapi-helpers/**'
+      - '.github/workflows/ci-openapi.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'services/substrate/src/openapi.ts'
+      - 'services/test-generator/src/openapi.ts'
+      - 'services/discovery/src/openapi.ts'
+      - 'services/*/scripts/dump-openapi.ts'
+      - 'packages/openapi-helpers/**'
+      - '.github/workflows/ci-openapi.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [substrate, test-generator, discovery]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build openapi-helpers + canonical-schema
+        run: pnpm --filter @aeos/openapi-helpers --filter @aeos/canonical-schema build
+
+      - name: Lint ${{ matrix.service }} OpenAPI spec
+        run: pnpm --filter @aeos/${{ matrix.service }} openapi:lint

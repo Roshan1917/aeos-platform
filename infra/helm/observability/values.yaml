@@ -1,0 +1,253 @@
+# Default values for aeos-observability chart.
+
+# ---------------------------------------------------------------------------
+# Grafana
+# ---------------------------------------------------------------------------
+grafana:
+  persistence:
+    enabled: true
+    # gp3 backed by the AWS EBS CSI driver (managed addon). The legacy in-tree
+    # gp2 provisioner was removed in EKS 1.30, so dynamic provisioning needs
+    # the CSI driver and a CSI-backed StorageClass.
+    storageClassName: gp3
+    size: 10Gi
+  adminUser: admin
+  # Admin password sourced from AWS Secrets Manager via ESO — do not set here.
+  # The ExternalSecret syncs aeos/non-prod/grafana → grafana-admin-secret.
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://aeos-observability-kube-prometheus-stack-prometheus:9090
+          isDefault: true
+          access: proxy
+        - name: Loki
+          type: loki
+          # Service name pinned via loki.fullnameOverride below.
+          url: http://loki-gateway.observability.svc.cluster.local
+          access: proxy
+          jsonData:
+            maxLines: 1000
+  # Dashboard sidecar — provisions any ConfigMap labelled grafana_dashboard=1.
+  # AEOS dashboards live in infra/helm/observability/dashboards/*.json and
+  # are wrapped into ConfigMaps by templates/grafana-dashboards.yaml.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  ingress:
+    enabled: false   # managed by grafana-ingress.yaml template
+
+# ---------------------------------------------------------------------------
+# kube-prometheus-stack (Prometheus + Alertmanager)
+# ---------------------------------------------------------------------------
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      retention: 30d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 50Gi
+      resources:
+        requests:
+          cpu: 250m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 4Gi
+  alertmanager:
+    enabled: true
+    alertmanagerSpec:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+  grafana:
+    # Disable bundled Grafana — we deploy it separately above
+    enabled: false
+
+# ---------------------------------------------------------------------------
+# OpenTelemetry Collector
+# ---------------------------------------------------------------------------
+opentelemetry-collector:
+  mode: deployment
+  replicaCount: 2
+  # Recent versions of the chart removed the default image; must be set explicitly.
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: ""   # use chart appVersion
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # Configuration is provided via otel-collector-config.yaml ConfigMap template.
+  # The collector references it via the config.file mount.
+  configMap:
+    create: false   # we manage the ConfigMap in templates/otel-collector-config.yaml
+  extraVolumeMounts:
+    - name: otel-collector-config
+      mountPath: /conf
+  extraVolumes:
+    - name: otel-collector-config
+      configMap:
+        name: otel-collector-config
+  command:
+    extraArgs:
+      - "--config=/conf/otel-collector-config.yaml"
+
+# ---------------------------------------------------------------------------
+# LangFuse connection (used by OTel Collector exporter)
+# ---------------------------------------------------------------------------
+langfuse:
+  # LangFuse is deployed by the aeos-langfuse chart (own ArgoCD Application,
+  # same `observability` namespace). The OTel Collector exports traces to
+  # the langfuse-web Service inside the cluster.
+  otlpEndpoint: "http://langfuse-web:3000/api/public/otel"
+  # Public key and secret key are synced from Secrets Manager.
+  secretName: langfuse-otel-credentials
+  publicKeyField: public-key
+  secretKeyField: secret-key
+
+# ---------------------------------------------------------------------------
+# Loki — log aggregation (single-binary mode, filesystem storage)
+# ---------------------------------------------------------------------------
+# Single-binary suits non-prod: 1 pod, gp3 PVC, no S3 dependency. For prod
+# swap to deploymentMode=SimpleScalable + S3 backend (see prod-values
+# follow-up note in infra/CLAUDE.md).
+loki:
+  fullnameOverride: loki
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+    limits_config:
+      retention_period: 168h        # 7 days; raise per env
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      max_query_series: 5000
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      storageClass: gp3
+      size: 20Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+  # Disable scalable-mode workloads
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  backend:
+    replicas: 0
+  # Disable bundled MinIO/cache; filesystem storage doesn't need them
+  minio:
+    enabled: false
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+  # Lightweight gateway (nginx) — Grafana datasource targets this Service
+  gateway:
+    enabled: true
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  test:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+# ---------------------------------------------------------------------------
+# Promtail — pod log shipper (DaemonSet)
+# ---------------------------------------------------------------------------
+promtail:
+  config:
+    clients:
+      - url: http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - cri: {}
+        - match:
+            selector: '{namespace=~"substrate|differentiated|platform|observability"}'
+            stages:
+              # Try to parse JSON-formatted app logs (Pino, structlog) and
+              # promote level + msg as labels for filtering in Grafana.
+              - json:
+                  expressions:
+                    level: level
+                    message: msg
+              - labels:
+                  level:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  serviceMonitor:
+    enabled: true
+
+# ---------------------------------------------------------------------------
+# Ingress hosts (override per environment)
+# ---------------------------------------------------------------------------
+ingress:
+  host: ""   # e.g. grafana.aeos.fuzebox.ai — set in values-non-prod/prod.yaml
+  langfuseHost: ""
+  clusterIssuerName: letsencrypt-prod
+  ingressClassName: nginx

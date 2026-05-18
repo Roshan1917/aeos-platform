@@ -1,0 +1,8 @@
+apiVersion: v2
+name: aeos-web
+description: AEOS Reference Frontend (nginx serving static SPA)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+annotations:
+  "app.kubernetes.io/part-of": "aeos-platform"

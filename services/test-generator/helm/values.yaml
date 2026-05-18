@@ -1,0 +1,75 @@
+replicaCount: 1
+
+image:
+  # Real registry/tag pinned per-environment in values-{env}.yaml.
+  repository: REPLACE_WITH_ECR_REPO/aeos-service-test-generator
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 3005
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 384Mi
+
+# External Secrets Operator — syncs from AWS Secrets Manager.
+# Expected keys in the remote secret:
+#   DATABASE_URL, AUTH_JWT_SECRET, ANTHROPIC_API_KEY
+externalSecrets:
+  enabled: true
+  secretStoreName: aeos-cluster-store
+  refreshInterval: 5m
+  secrets:
+    - name: test-generator-secrets
+      remoteRef:
+        key: aeos/non-prod/test-generator
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 3005
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 3005
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+podLabels:
+  aeos.fuzebox/service: test-generator
+  aeos.fuzebox/layer: differentiated
+
+# Ingress matches the substrate-api convention: /api/test-generator(/|$)(.*) on
+# the platform host, with regex rewrite stripping the prefix before forwarding
+# to the upstream service. Host + enable flag set per-env in values-{env}.yaml.
+ingress:
+  enabled: false
+  className: nginx
+  host: ""
+  pathPrefix: /api/test-generator
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # Force Cloudflare proxy ON. external-dns chart 1.14.x ignores the
+    # global cloudflare.proxied value, so set it per-record.
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+
+# Run Prisma migrations as an init container before the service starts.
+# Image overridden in values-{env}.yaml so it tracks the same ECR tag as the
+# main container.
+initContainers:
+  - name: migrate
+    image: REPLACE_WITH_ECR_REPO/aeos-service-test-generator
+    command: ["npx", "prisma", "migrate", "deploy"]
+    envFrom:
+      - secretRef:
+          name: test-generator-secrets

@@ -1,0 +1,22 @@
+{
+  "name": "@aeos/sdk-adapter-vertex",
+  "version": "0.1.0",
+  "description": "AEOS Agent Adapter — Google Vertex AI (Gemini) reference implementation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/adapter-sdk": "workspace:*",
+    "@google-cloud/vertexai": "^1.1.0"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

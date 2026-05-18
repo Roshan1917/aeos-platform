@@ -1,0 +1,35 @@
+{
+  "name": "@aeos/service-REPLACE_ME",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "REPLACE_ME — AEOS platform service",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:migrate": "node -r tsx/esm src/db/migrate.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/auth-client": "workspace:*",
+    "@aeos/canonical-schema": "workspace:*",
+    "@aeos/event-bus-client": "workspace:*",
+    "@aeos/openapi-helpers": "workspace:*",
+    "@aeos/registry-client": "workspace:*",
+    "@aeos/telemetry-sdk": "workspace:*",
+    "express": "^4.19.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@aeos/testing": "workspace:*",
+    "@types/express": "^4.17.0",
+    "tsx": "*",
+    "typescript": "*",
+    "vitest": "*"
+  }
+}

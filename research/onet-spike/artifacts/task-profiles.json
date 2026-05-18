@@ -1,0 +1,290 @@
+{
+  "profiles": [
+    {
+      "task_id": 18861,
+      "description": "Interpret and explain human resources policies, procedures, laws, standards, or regulations.",
+      "importance": 4.66,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 60,
+      "rationale": "Interpreting and explaining HR policies, procedures, laws, standards, or regulations requires legal judgment and sensitive communication, which AI cannot fully handle."
+    },
+    {
+      "task_id": 18859,
+      "description": "Hire employees and process hiring-related paperwork.",
+      "importance": 4.5,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_hire",
+      "human_minutes": 120,
+      "ai_minutes": 1,
+      "rationale": "Hiring employees and processing related paperwork involves routine data entry and document generation, which AI can fully automate."
+    },
+    {
+      "task_id": 21097,
+      "description": "Administer employee benefit plans.",
+      "importance": 4.45,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 30,
+      "rationale": "Administering employee benefit plans involves preparing and managing information, which AI can assist with, but final decisions may require human oversight."
+    },
+    {
+      "task_id": 18864,
+      "description": "Maintain current knowledge of Equal Employment Opportunity (EEO) and affirmative action guidelines and laws, such as the Americans with Disabilities Act (ADA).",
+      "importance": 4.44,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_week",
+      "human_minutes": 120,
+      "ai_minutes": 120,
+      "rationale": "Maintaining knowledge of EEO and affirmative action laws involves legal expertise and ongoing education, requiring human judgment."
+    },
+    {
+      "task_id": 18869,
+      "description": "Schedule or administer skill, intelligence, psychological, or drug tests for current or prospective employees.",
+      "importance": 4.34,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_hire",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Scheduling or administering tests can be automated, but coordinating and overseeing testing may need human involvement."
+    },
+    {
+      "task_id": 18866,
+      "description": "Prepare or maintain employment records related to events, such as hiring, termination, leaves, transfers, or promotions, using human resources management system software.",
+      "importance": 4.33,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_open_req",
+      "human_minutes": 10,
+      "ai_minutes": 10,
+      "rationale": "Preparing or maintaining employment records is routine record-keeping, suitable for automation."
+    },
+    {
+      "task_id": 18852,
+      "description": "Address employee relations issues, such as harassment allegations, work complaints, or other employee concerns.",
+      "importance": 4.31,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 60,
+      "rationale": "Addressing employee relations issues involves sensitive conversations and legal considerations, requiring human judgment."
+    },
+    {
+      "task_id": 18855,
+      "description": "Conduct reference or background checks on job applicants.",
+      "importance": 4.28,
+      "task_type": "Supplemental",
+      "ai_capability": "auto",
+      "driver": "per_hire",
+      "human_minutes": 30,
+      "ai_minutes": 10,
+      "rationale": "Conducting background checks can be automated through data retrieval and verification processes."
+    },
+    {
+      "task_id": 18860,
+      "description": "Inform job applicants of details such as duties and responsibilities, compensation, benefits, schedules, working conditions, or promotion opportunities.",
+      "importance": 4.18,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 5,
+      "ai_minutes": 3,
+      "rationale": "Informing applicants of job details involves routine communication, suitable for automation."
+    },
+    {
+      "task_id": 18868,
+      "description": "Review employment applications and job orders to match applicants with job requirements.",
+      "importance": 4.18,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 10,
+      "ai_minutes": 5,
+      "rationale": "Reviewing applications and matching candidates can be automated using AI screening tools."
+    },
+    {
+      "task_id": 18871,
+      "description": "Select qualified job applicants or refer them to managers, making hiring recommendations when appropriate.",
+      "importance": 4.16,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_hire",
+      "human_minutes": 15,
+      "ai_minutes": 7,
+      "rationale": "Providing management with interview and performance information can be assisted by AI, but final recommendations may need human review."
+    },
+    {
+      "task_id": 18870,
+      "description": "Schedule or conduct new employee orientations.",
+      "importance": 4.14,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_hire",
+      "human_minutes": 60,
+      "ai_minutes": 2,
+      "rationale": "Scheduling and conducting orientations are routine tasks that AI can fully automate."
+    },
+    {
+      "task_id": 18876,
+      "description": "Review and evaluate applicant qualifications or eligibility for specified licensing, according to established guidelines and designated licensing codes.",
+      "importance": 4.11,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 20,
+      "ai_minutes": 10,
+      "rationale": "Reviewing applicant qualifications can be assisted by AI, but final eligibility decisions may require human judgment."
+    },
+    {
+      "task_id": 18863,
+      "description": "Maintain and update human resources documents, such as organizational charts, employee handbooks or directories, or performance evaluation forms.",
+      "importance": 4.0,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 60,
+      "rationale": "Maintaining HR documents involves administrative tasks that require human oversight and legal compliance."
+    },
+    {
+      "task_id": 18856,
+      "description": "Confer with management to develop or implement personnel policies or procedures.",
+      "importance": 3.99,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_week",
+      "human_minutes": 45,
+      "ai_minutes": 22.5,
+      "rationale": "Developing or implementing policies involves collaboration and judgment, but initial drafting can be assisted by AI."
+    },
+    {
+      "task_id": 18874,
+      "description": "Evaluate recruitment or selection criteria to ensure conformance to professional, statistical, or testing standards, recommending revisions, as needed.",
+      "importance": 3.95,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Evaluating recruitment criteria involves analysis that AI can assist with, but final decisions require human input."
+    },
+    {
+      "task_id": 18857,
+      "description": "Contact job applicants to inform them of the status of their applications.",
+      "importance": 3.91,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 5,
+      "ai_minutes": 2,
+      "rationale": "Informing applicants of application status is routine communication suitable for automation."
+    },
+    {
+      "task_id": 18854,
+      "description": "Conduct exit interviews and ensure that necessary employment termination paperwork is completed.",
+      "importance": 3.9,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_hire",
+      "human_minutes": 60,
+      "ai_minutes": 60,
+      "rationale": "Conducting exit interviews and completing termination paperwork involve sensitive conversations and legal considerations, requiring human judgment."
+    },
+    {
+      "task_id": 18862,
+      "description": "Interview job applicants to obtain information on work history, training, education, or job skills.",
+      "importance": 3.89,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 30,
+      "ai_minutes": 12,
+      "rationale": "Phone screens of applicants involve direct conversation; AI can prepare questions and summarize, but human interaction remains essential."
+    },
+    {
+      "task_id": 18865,
+      "description": "Perform searches for qualified job candidates, using sources such as computer databases, networking, Internet recruiting resources, media advertisements, job fairs, recruiting firms, or employee referrals.",
+      "importance": 3.86,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_open_req",
+      "human_minutes": 20,
+      "ai_minutes": 10,
+      "rationale": "Performing candidate searches using databases and online resources can be fully automated."
+    },
+    {
+      "task_id": 18867,
+      "description": "Provide management with information or training related to interviewing, performance appraisals, counseling techniques, or documentation of performance issues.",
+      "importance": 3.86,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Providing management training involves content delivery that AI can assist with, but final training delivery may involve humans."
+    },
+    {
+      "task_id": 18853,
+      "description": "Analyze employment-related data and prepare required reports.",
+      "importance": 3.81,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_week",
+      "human_minutes": 45,
+      "ai_minutes": 22.5,
+      "rationale": "Analyzing employment data and preparing reports can be assisted by AI, but interpretation may require human expertise."
+    },
+    {
+      "task_id": 18872,
+      "description": "Advise management on organizing, preparing, or implementing recruiting or retention programs.",
+      "importance": 3.73,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Advising management on recruiting strategies involves expertise, but AI can assist with data analysis and recommendations."
+    },
+    {
+      "task_id": 18858,
+      "description": "Develop or implement recruiting strategies to meet current or anticipated staffing needs.",
+      "importance": 3.71,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_open_req",
+      "human_minutes": 40,
+      "ai_minutes": 20,
+      "rationale": "Developing recruiting strategies involves routine planning and can be supported by AI tools."
+    },
+    {
+      "task_id": 18873,
+      "description": "Coordinate with outside staffing agencies to secure temporary employees, based on departmental needs.",
+      "importance": 3.57,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Coordinating with staffing agencies involves communication that AI can assist with, but final decisions require human judgment."
+    },
+    {
+      "task_id": 18875,
+      "description": "Evaluate selection or testing techniques by conducting research or follow-up activities and conferring with management or supervisory personnel.",
+      "importance": 3.5,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Evaluating testing techniques involves research and analysis that AI can assist with, but final judgment requires human oversight."
+    }
+  ]
+}

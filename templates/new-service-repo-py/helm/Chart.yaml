@@ -1,0 +1,15 @@
+apiVersion: v2
+name: aeos-service-REPLACE_ME
+description: AEOS Platform — REPLACE_ME service
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aeos
+  - fuzebox
+home: https://github.com/fuzebox/aeos-platform
+maintainers:
+  - name: Platform Team
+    email: platform-team@fuzebox.ai
+annotations:
+  "app.kubernetes.io/part-of": "aeos-platform"

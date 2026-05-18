@@ -1,0 +1,49 @@
+# Production environment overrides for aeos-platform umbrella chart.
+# Applied on top of values.yaml for the prod AWS account.
+
+ingress-nginx:
+  controller:
+    replicaCount: 3
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+cert-manager:
+  replicaCount: 2
+
+external-secrets:
+  replicaCount: 2
+  serviceAccount:
+    annotations:
+      # IRSA — must match output `external_secrets_role_arn` from terraform prod env.
+      # `PROD_ACCOUNT_ID` is substituted by CI (helm --set) or via envsubst at deploy.
+      eks.amazonaws.com/role-arn: "arn:aws:iam::PROD_ACCOUNT_ID:role/aeos-prod-external-secrets"
+
+cloudflare:
+  secrets:
+    apiTokenSecretName: aeos/prod/platform/cloudflare-api-token
+    originCertSecretName: aeos/prod/platform/cloudflare-origin-cert
+
+external-dns:
+  txtOwnerId: aeos-prod
+  domainFilters:
+    - aeos.fuzebox.ai
+
+argocdIngress:
+  host: argocd.aeos.fuzebox.ai
+
+# Cloudflare Origin CA terminates TLS at the NLB origin; Let's Encrypt is
+# kept disabled in prod by default. Flip these on if you ever need to
+# terminate TLS at the NLB without Cloudflare in front.
+clusterIssuer:
+  staging:
+    enabled: false
+  production:
+    enabled: false
+
+clusterSecretStore:
+  region: us-east-1

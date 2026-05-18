@@ -1,0 +1,27 @@
+{
+  "spans": [
+    {
+      "schema_version": "1.0",
+      "span_id": "01JK4TZ3X8N0M0WV9X9D2GQ50A",
+      "trace_id": "01JK4TZ3X8N0M0WV9X9D2GQ500",
+      "tenant_id": "dev-tenant",
+      "agent_id": "agent-dev-1",
+      "uop_id": "uop-renewal-dev",
+      "decision_id": "dec-001",
+      "name": "aeos.llm.call",
+      "kind": "llm_call",
+      "start_time": "2026-04-28T12:00:00.000Z",
+      "end_time": "2026-04-28T12:00:01.234Z",
+      "duration_ms": 1234.0,
+      "status": "ok",
+      "attributes": {
+        "aeos.model_provider": "anthropic",
+        "aeos.model_id": "claude-sonnet-4-6",
+        "aeos.input_tokens": 542,
+        "aeos.output_tokens": 128,
+        "aeos.cost_usd": 0.00321
+      },
+      "events": []
+    }
+  ]
+}

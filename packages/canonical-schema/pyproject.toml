@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aeos-canonical-schema"
+version = "0.1.0"
+description = "AEOS canonical domain types (Python — auto-generated from TypeScript source of truth)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/fuzebox/aeos-platform"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/python/aeos_canonical_schema"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/python/aeos_canonical_schema" = "aeos_canonical_schema"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: fuzebox/aeos-platform/.github/workflows/ci-service-template.yml@main
+    with:
+      service-name: REPLACE_ME
+      language: typescript
+    secrets:
+      AEOS_NPM_TOKEN: ${{ secrets.AEOS_NPM_TOKEN }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}

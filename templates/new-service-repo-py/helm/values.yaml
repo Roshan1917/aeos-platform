@@ -1,0 +1,49 @@
+replicaCount: 1
+
+image:
+  repository: REPLACE_WITH_ECR_REPO/aeos-service-REPLACE_ME
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# Environment variables injected via External Secrets Operator
+# Values come from AWS Secrets Manager paths:
+# aeos/{env}/{service-name}/...
+externalSecrets:
+  enabled: true
+  secretStoreName: aeos-secret-store
+  refreshInterval: 1h
+
+env:
+  SERVICE_NAME: aeos-REPLACE_ME
+  PLATFORM_ENV: non-prod
+
+labels:
+  app.kubernetes.io/part-of: aeos-platform
+  aeos.fuzebox/service: REPLACE_ME
+  aeos.fuzebox/namespace: differentiated

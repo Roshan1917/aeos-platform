@@ -1,0 +1,23 @@
+{
+  "name": "@aeos/sdk-adapter-cowork",
+  "version": "0.1.0",
+  "description": "AEOS Agent Adapter — Claude Cowork OTLP processor with skill auto-detection",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aeos/adapter-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "*",
+    "vitest": "^1.6.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

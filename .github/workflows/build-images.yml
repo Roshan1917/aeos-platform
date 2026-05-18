@@ -1,0 +1,224 @@
+name: Build & Push Images (non-prod)
+
+# Builds the 5 service images and pushes to non-prod ECR.
+# Triggers:
+#   - push to main on paths that touch any service Dockerfile or its source
+#   - manual run via the Actions UI (workflow_dispatch)
+#
+# CI runner is native amd64 (matches EKS nodes), so esbuild/vite don't OOM
+# the way they did under Docker Desktop emulation on Apple Silicon.
+
+on:
+  # Auto-trigger on push to main is paused while non-prod is destroyed via
+  # Terraform. Re-enable the `push` block below once the cluster is back up
+  # and Phase 15 (schema-per-service deploy cutover, see docs/plan.md) has
+  # landed — until then a merge would push images + bump Helm values that
+  # ArgoCD has no cluster to reconcile against.
+  #
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'services/**'
+  #     - 'apps/**'
+  #     - 'packages/**'
+  #     - 'pnpm-lock.yaml'
+  #     - 'pnpm-workspace.yaml'
+  #     - 'tsconfig.base.json'
+  #     - '.github/workflows/build-images.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (default: short SHA)'
+        required: false
+        default: ''
+      services:
+        description: 'Comma-separated services to build (default: all)'
+        required: false
+        default: 'aeos-web,aeos-api-docs,aeos-service-substrate,aeos-service-telemetry,aeos-service-recommendations,aeos-service-test-generator'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: non-prod
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: aeos-web
+            dockerfile: apps/web/Dockerfile
+            context: .
+          - name: aeos-api-docs
+            dockerfile: apps/api-docs/Dockerfile
+            context: .
+          - name: aeos-service-substrate
+            dockerfile: services/substrate/Dockerfile
+            context: .
+          - name: aeos-service-test-generator
+            dockerfile: services/test-generator/Dockerfile
+            context: .
+          - name: aeos-service-telemetry
+            dockerfile: services/telemetry/Dockerfile
+            # Repo-root context — telemetry's Dockerfile vendors the
+            # in-repo aeos-* Python packages from packages/<pkg>/src/python/
+            # while a private PyPI (CodeArtifact) doesn't exist yet. See
+            # docs/plan.md → Outstanding for the long-term plan.
+            context: .
+          # ── Recommendations (excluded until Intelligence service exists) ──
+          # The recommendations service consumes `ledger.variance.detected`
+          # events produced by Intelligence, which doesn't exist yet. The
+          # image builds fine (same vendored-packages path as telemetry)
+          # but the consumer would idle indefinitely. Re-add here when
+          # Intelligence lands:
+          # - name: aeos-service-recommendations
+          #   dockerfile: services/recommendations/Dockerfile
+          #   context: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if dispatched + service not selected
+        id: gate
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            list="${{ github.event.inputs.services }}"
+            if [[ ",$list," != *",${{ matrix.name }},"* ]]; then
+              echo "Skipping ${{ matrix.name }} (not in inputs.services)"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Skip if Dockerfile missing
+        if: steps.gate.outputs.skip != 'true'
+        id: check
+        run: |
+          if [[ ! -f "${{ matrix.dockerfile }}" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Dockerfile not present at ${{ matrix.dockerfile }} — skipping"
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.gate.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_NON_PROD }}:role/aeos-github-actions-terraform
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: steps.gate.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # CodeArtifact step intentionally absent — Python services vendor the
+      # in-repo aeos-* packages directly during Docker build (see their
+      # Dockerfiles + the repo-root build context above). When CodeArtifact
+      # lands per docs/plan.md → Outstanding, restore an `aws codeartifact
+      # get-authorization-token` step here and re-introduce the
+      # `--extra-index-url` build arg.
+
+      - name: Compute tag
+        if: steps.gate.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.gate.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+
+      - name: Build & push ${{ matrix.name }}
+        if: steps.gate.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.name }}:${{ steps.tag.outputs.value }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # Pin the just-built SHA tag into each service's non-prod values file and
+  # commit back to main. ArgoCD watches main with selfHeal=true, so the values
+  # diff drives a rollout — no kubectl restart required, and no `:latest` pull
+  # ambiguity (IfNotPresent + :latest was caching old images on nodes).
+  bump-values:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tag
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Bump non-prod image tags
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+          ECR: 647379406699.dkr.ecr.us-east-1.amazonaws.com
+        run: |
+          # Only bump services whose images this run actually built.
+          # Recommendations is still skipped in the build matrix (depends on
+          # the not-yet-existent Intelligence service), so its values file
+          # stays untouched.
+          yq -i '.image.tag = strenv(TAG)' apps/web/helm/values-non-prod.yaml
+          yq -i '.image.tag = strenv(TAG)' apps/api-docs/helm/values-non-prod.yaml
+          yq -i '.image.tag = strenv(TAG)' services/substrate/helm/values-non-prod.yaml
+          # substrate also pins the migrate initContainer image — keep it in lock-step.
+          yq -i '.initContainers[0].image = strenv(ECR) + "/aeos-service-substrate:" + strenv(TAG)' \
+            services/substrate/helm/values-non-prod.yaml
+          yq -i '.image.tag = strenv(TAG)' services/test-generator/helm/values-non-prod.yaml
+          yq -i '.initContainers[0].image = strenv(ECR) + "/aeos-service-test-generator:" + strenv(TAG)' \
+            services/test-generator/helm/values-non-prod.yaml
+          yq -i '.image.tag = strenv(TAG)' services/telemetry/helm/values-non-prod.yaml
+          # telemetry pins an Alembic migrate initContainer image once the chart's
+          # templates land (#planned). Until then the field doesn't exist, so the
+          # update is a no-op via yq's create-on-write — we still write it to be
+          # ready when PR 4 lands.
+          yq -i '.initContainers[0].image = strenv(ECR) + "/aeos-service-telemetry:" + strenv(TAG)' \
+            services/telemetry/helm/values-non-prod.yaml
+
+      - name: Commit & push
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          if git diff --quiet; then
+            echo "No tag changes; skipping commit."
+            exit 0
+          fi
+          git config user.name "aeos-ci[bot]"
+          git config user.email "aeos-ci@users.noreply.github.com"
+          git add apps/web/helm/values-non-prod.yaml \
+                  apps/api-docs/helm/values-non-prod.yaml \
+                  services/substrate/helm/values-non-prod.yaml \
+                  services/test-generator/helm/values-non-prod.yaml \
+                  services/telemetry/helm/values-non-prod.yaml
+          # [skip ci] prevents the push from re-triggering this workflow.
+          git commit -m "chore(deploy): bump non-prod image tags to ${TAG} [skip ci]"
+          git push origin HEAD:main

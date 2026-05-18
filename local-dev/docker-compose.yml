@@ -1,0 +1,343 @@
+version: '3.9'
+
+services:
+  # Kafka (MSK-compatible via KRaft mode — no ZooKeeper)
+  #
+  # Two listeners so the broker is reachable from both sides:
+  #   • BROKER  — in-compose services connect to `kafka:9092` (advertised as kafka:9092)
+  #   • EXTERNAL — host processes (pnpm dev outside compose) connect to localhost:9092,
+  #                routed by the host port mapping below to container port 29092
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    ports:
+      - '9092:29092'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_LISTENERS: BROKER://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: BROKER://kafka:9092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: BROKER:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: BROKER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: aeos-local-cluster-001
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ['CMD', 'kafka-broker-api-versions', '--bootstrap-server', 'localhost:9092']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Postgres — used by substrate (auth) service and other in-repo services
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: aeos
+      POSTGRES_PASSWORD: aeos_dev_password
+      POSTGRES_DB: aeos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aeos']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Redis — session cache, rate limiting, distributed locks
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    command: redis-server --requirepass aeos_dev_redis
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'aeos_dev_redis', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # LangFuse — LLM observability / span storage
+  # Shares the single `postgres` container; its DB + role are provisioned by
+  # init-db.sql (langfuse role + langfuse DB).
+  langfuse:
+    image: langfuse/langfuse:2
+    ports:
+      - '3001:3000'
+    environment:
+      DATABASE_URL: postgresql://langfuse:langfuse_dev_password@postgres:5432/langfuse
+      NEXTAUTH_URL: http://localhost:3001
+      NEXTAUTH_SECRET: aeos-langfuse-dev-secret
+      SALT: aeos-langfuse-salt
+      ENCRYPTION_KEY: 2ab314061c211afc13e491dd13ad5ad3a3b00988fc4156a85ac9f6fb6697706f
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # LocalStack — AWS services (S3, KMS, Secrets Manager)
+  localstack:
+    image: localstack/localstack:3.4
+    ports:
+      - '4566:4566'
+    environment:
+      SERVICES: s3,kms,secretsmanager
+      DEBUG: 0
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - './init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4566/_localstack/health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # OpenFGA — Relationship-Based Access Control (ReBAC) for substrate RBAC
+  # Shares the single `postgres` container; its DB + role are provisioned by
+  # init-db.sql (openfga role + openfga DB).
+  openfga-migrate:
+    image: openfga/openfga:v1.5.3
+    command: migrate
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://openfga:openfga_dev_password@postgres:5432/openfga
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  openfga:
+    image: openfga/openfga:v1.5.3
+    ports:
+      - '8080:8080'   # HTTP API
+      - '8081:8081'   # gRPC
+      # playground (container :3000) intentionally not exposed — dev-only UI,
+      # not used at runtime. Re-add `- '3010:3000'` if you need it.
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://openfga:openfga_dev_password@postgres:5432/openfga
+      OPENFGA_AUTHN_METHOD: none   # no auth in local dev
+      OPENFGA_LOG_FORMAT: json
+    command: run
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
+    # openfga image is distroless (no curl/shell) — health verified by log output
+    healthcheck:
+      disable: true
+
+  # OTel Collector — receives spans from services, forwards to LangFuse + Grafana
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.99.0
+    ports:
+      - '4317:4317'   # gRPC
+      - '4318:4318'   # HTTP
+    environment:
+      # Obtain from LangFuse UI (Settings → API Keys) after first login at http://localhost:3001
+      # Leave as placeholder for local dev — spans will still be captured via debug exporter
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-local-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local-dev}
+    volumes:
+      - './otel-collector-config.yaml:/etc/otel-collector-config.yaml'
+    command: ['--config=/etc/otel-collector-config.yaml']
+    depends_on:
+      - langfuse
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Differentiated services — run with `--profile services` to bring the
+  # full stack up in containers. Default `docker compose up` keeps to infra
+  # only so devs can hot-reload the services with `pnpm dev` / uvicorn
+  # locally. Build context is the repo root for every service so they can
+  # vendor monorepo packages.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  substrate:
+    profiles: ['services']
+    build:
+      context: ..
+      dockerfile: services/substrate/Dockerfile
+    ports:
+      - '3002:3002'
+    environment:
+      NODE_ENV: development
+      PLATFORM_ENV: local
+      SERVICE_NAME: substrate
+      PORT: '3002'
+      DATABASE_URL: postgresql://aeos:aeos_dev_password@postgres:5432/aeos?schema=substrate
+      AUTH_JWT_SECRET: aeos-dev-jwt-secret-change-me-in-prod-must-be-at-least-32-chars
+      AUTH_JWT_EXPIRY_SECONDS: '3600'
+      AUTH_REFRESH_EXPIRY_SECONDS: '604800'
+      OPENFGA_API_URL: http://openfga:8080
+      OPENFGA_STORE_ID: ${OPENFGA_STORE_ID:-}
+      OPENFGA_MODEL_ID: ${OPENFGA_MODEL_ID:-}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_SSL: 'false'
+      REDIS_URL: redis://:aeos_dev_redis@redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      openfga:
+        condition: service_started
+
+  telemetry:
+    profiles: ['services']
+    build:
+      context: ..
+      dockerfile: services/telemetry/Dockerfile
+    ports:
+      - '3003:3003'
+    environment:
+      PLATFORM_ENV: local
+      SERVICE_NAME: telemetry
+      PORT: '3003'
+      DATABASE_URL: postgresql://aeos:aeos_dev_password@postgres:5432/aeos
+      DATABASE_SCHEMA: telemetry
+      AUTH_JWT_SECRET: aeos-dev-jwt-secret-change-me-in-prod-must-be-at-least-32-chars
+      AUTH_SERVICE_URL: http://substrate:3002
+      REGISTRY_URL: http://substrate:3002
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_SSL: 'false'
+      LANGFUSE_HOST: http://langfuse:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-local-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local-dev}
+      TELEMETRY_TOKEN_SIGNING_SECRET: aeos-dev-telemetry-token-secret-change-me-min-32-chars
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      substrate:
+        condition: service_started
+
+  recommendations:
+    profiles: ['services']
+    build:
+      context: ..
+      dockerfile: services/recommendations/Dockerfile
+    ports:
+      - '3004:3004'
+    environment:
+      PLATFORM_ENV: local
+      SERVICE_NAME: recommendations
+      PORT: '3004'
+      DATABASE_URL: postgresql://aeos:aeos_dev_password@postgres:5432/aeos
+      DATABASE_SCHEMA: recommendations
+      AUTH_JWT_SECRET: aeos-dev-jwt-secret-change-me-in-prod-must-be-at-least-32-chars
+      AUTH_SERVICE_URL: http://substrate:3002
+      REGISTRY_URL: http://substrate:3002
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_SSL: 'false'
+      SUBSCRIBE_TENANT_IDS: ${SUBSCRIBE_TENANT_IDS:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      substrate:
+        condition: service_started
+
+  test-generator:
+    profiles: ['services']
+    build:
+      context: ..
+      dockerfile: services/test-generator/Dockerfile
+    ports:
+      - '3005:3005'
+    environment:
+      NODE_ENV: development
+      PLATFORM_ENV: local
+      SERVICE_NAME: test-generator
+      PORT: '3005'
+      DATABASE_URL: postgresql://aeos:aeos_dev_password@postgres:5432/aeos?schema=test_generator
+      AUTH_JWT_SECRET: aeos-dev-jwt-secret-change-me-in-prod-must-be-at-least-32-chars
+      AUTH_SERVICE_URL: http://substrate:3002
+      TELEMETRY_URL: http://telemetry:3003
+      AEOS_TELEMETRY_TOKEN: ${AEOS_TELEMETRY_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      substrate:
+        condition: service_started
+
+  discovery:
+    profiles: ['services']
+    build:
+      context: ..
+      dockerfile: services/discovery/Dockerfile
+    ports:
+      - '3006:3006'
+    environment:
+      NODE_ENV: development
+      PLATFORM_ENV: local
+      SERVICE_NAME: discovery
+      PORT: '3006'
+      DATABASE_URL: postgresql://aeos:aeos_dev_password@postgres:5432/aeos?schema=discovery
+      AUTH_JWT_SECRET: aeos-dev-jwt-secret-change-me-in-prod-must-be-at-least-32-chars
+      AUTH_SERVICE_URL: http://substrate:3002
+      SUBSTRATE_URL: http://substrate:3002
+      REDIS_URL: redis://:aeos_dev_redis@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_SSL: 'false'
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      DOCUMENT_STORAGE_PATH: /app/services/discovery/uploads/documents
+    volumes:
+      - discovery_documents:/app/services/discovery/uploads/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      substrate:
+        condition: service_started
+
+  web:
+    profiles: ['services']
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    ports:
+      # Host 5173 chosen to avoid collision with OpenFGA's HTTP API on 8080.
+      - '5173:80'
+    # apps/web is a static SPA served by nginx; in production the platform
+    # ingress handles /api/* routing. Locally we mount nginx-local.conf
+    # which adds proxy locations for /api/{substrate,telemetry,
+    # recommendations,test-generator} so the SPA can reach its backends
+    # without the operator standing up a separate reverse proxy.
+    volumes:
+      - './nginx-local.conf:/etc/nginx/conf.d/default.conf:ro'
+    depends_on:
+      substrate:
+        condition: service_started
+      telemetry:
+        condition: service_started
+      recommendations:
+        condition: service_started
+      test-generator:
+        condition: service_started
+      discovery:
+        condition: service_started
+
+volumes:
+  kafka_data:
+  postgres_data:
+  localstack_data:
+  discovery_documents:

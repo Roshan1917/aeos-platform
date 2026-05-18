@@ -1,0 +1,74 @@
+# docker-compose.override.yml — Local dev overrides
+# Automatically merged with docker-compose.yml by Docker Compose.
+# Only overrides what differs from the base file for local development.
+version: '3.9'
+
+services:
+  kafka:
+    environment:
+      # Retain logs for 1 hour in local dev (vs 7-day default in production)
+      KAFKA_LOG_RETENTION_MS: '3600000'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    # Expose pgAdmin-compatible debug port (same as base, but with shorter healthcheck)
+    ports:
+      - '5432:5432'
+    deploy:
+      resources:
+        limits:
+          # Single Postgres now hosts the app DB + LangFuse + OpenFGA, so
+          # bump the cap from the previous per-instance 256M.
+          memory: 512M
+    healthcheck:
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  langfuse:
+    environment:
+      # Disable expensive DB queries in local dev for better performance
+      LANGFUSE_DISABLE_EXPENSIVE_QUERIES: 'true'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:3000/api/public/health']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  otel-collector:
+    # Expose pprof debug port for local profiling
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+      - '55679:55679'   # zpages debug port
+    # otel-collector-contrib image is distroless — no curl/shell available
+    healthcheck:
+      disable: true
+
+  openfga:
+    # openfga image is distroless — healthcheck disabled, service verified via port check
+    healthcheck:
+      disable: true
+
+  localstack:
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 10

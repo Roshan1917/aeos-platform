@@ -1,0 +1,21 @@
+{
+  "name": "@aeos/sdk-adapter-human-workflow",
+  "version": "0.1.0",
+  "description": "AEOS Agent Adapter — Human-in-the-loop workflow reference implementation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/adapter-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: aeos-service-recommendations
+description: AEOS Platform — Recommendations service (variance → templated recommendations)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+annotations:
+  "app.kubernetes.io/part-of": "aeos-platform"

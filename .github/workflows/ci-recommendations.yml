@@ -1,0 +1,25 @@
+name: CI — Recommendations Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/recommendations/**'
+      - '.github/workflows/ci-recommendations.yml'
+      - '.github/workflows/ci-service-template.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/recommendations/**'
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-service-template.yml
+    with:
+      service-name: recommendations
+      language: python
+      python-version: '3.11'
+    secrets:
+      AEOS_PYPI_TOKEN: ${{ secrets.AEOS_PYPI_TOKEN }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}

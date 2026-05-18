@@ -1,0 +1,52 @@
+replicaCount: 2
+
+image:
+  repository: REPLACE_WITH_ECR_REPO/aeos-web
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: 80
+  initialDelaySeconds: 2
+  periodSeconds: 5
+
+# Ingress fronts the SPA and reverse-proxies /api/{substrate,telemetry,recommendations}
+# into each backend service via path rewrites in the chart's Ingress template.
+# Host is set per-environment in values-non-prod.yaml / values-prod.yaml.
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts: []
+  # Example shape (set in values-{env}.yaml):
+  # hosts:
+  #   - host: staging.aeos.fuzebox.ai
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+
+labels:
+  app.kubernetes.io/part-of: aeos-platform
+  aeos.fuzebox/service: web
+  aeos.fuzebox/namespace: platform

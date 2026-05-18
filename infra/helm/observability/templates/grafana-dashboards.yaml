@@ -1,0 +1,27 @@
+# Grafana dashboard ConfigMaps — picked up by the Grafana sidecar
+# (sidecar.dashboards.enabled=true). The sidecar watches for ConfigMaps
+# carrying the `grafana_dashboard: "1"` label and provisions every JSON
+# key inside as a dashboard.
+#
+# Add a new dashboard: drop a *.json file under dashboards/ and it will be
+# included automatically by the range below.
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+{{- $name := base $path | trimSuffix ".json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aeos-grafana-dashboard-{{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+    app.kubernetes.io/component: grafana-dashboard
+  annotations:
+    # Place under a dedicated folder in Grafana
+    grafana_folder: "AEOS"
+data:
+  {{ $name }}.json: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}

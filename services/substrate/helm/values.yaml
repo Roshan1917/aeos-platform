@@ -1,0 +1,65 @@
+replicaCount: 2
+
+image:
+  # Real registry/tag pinned per-environment in values-{env}.yaml.
+  repository: REPLACE_WITH_ECR_REPO/aeos-service-substrate
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 3002
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# External Secrets Operator — syncs from AWS Secrets Manager
+externalSecrets:
+  enabled: true
+  secretStoreName: aeos-cluster-store
+  refreshInterval: 5m
+  secrets:
+    - name: substrate-secrets
+      remoteRef:
+        key: aeos/non-prod/substrate
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 3002
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 3002
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+podLabels:
+  aeos.fuzebox/service: substrate
+  aeos.fuzebox/layer: substrate
+
+# Run Prisma migrations as an init container before the service starts.
+# Image overridden in values-{env}.yaml so it tracks the same ECR tag as the
+# main container. Command runs prisma directly because there is no
+# dist/db/migrate.js entrypoint in the built image.
+initContainers:
+  - name: migrate
+    image: REPLACE_WITH_ECR_REPO/aeos-service-substrate
+    command: ["npx", "prisma", "migrate", "deploy"]
+    envFrom:
+      - secretRef:
+          name: substrate-secrets

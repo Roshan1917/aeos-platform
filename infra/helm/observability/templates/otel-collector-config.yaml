@@ -1,0 +1,73 @@
+# ConfigMap — OpenTelemetry Collector pipeline configuration.
+# Receives OTLP spans from AEOS services, forwards traces to LangFuse and
+# metrics to Prometheus.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+    app.kubernetes.io/component: otel-collector
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 400
+        spike_limit_mib: 80
+
+      batch:
+        timeout: 5s
+        send_batch_size: 512
+
+    exporters:
+      # Prometheus exporter — scrape endpoint for kube-prometheus-stack
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        namespace: aeos
+
+      # LangFuse — OTLP/HTTP trace export
+      # Use otlphttp (not otlp/gRPC) so we can target a full URL with a path.
+      # Auth header value is base64(public_key:secret_key).
+      otlphttp/langfuse:
+        endpoint: {{ .Values.langfuse.otlpEndpoint }}
+        headers:
+          Authorization: "Basic ${LANGFUSE_AUTH_HEADER}"
+        tls:
+          insecure: true
+
+      # Debug exporter — logs spans to stdout (disabled in prod via values override)
+      debug:
+        verbosity: normal
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      pprof:
+        endpoint: 0.0.0.0:1777
+      zpages:
+        endpoint: 0.0.0.0:55679
+
+    service:
+      extensions: [health_check, pprof, zpages]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/langfuse, debug]
+
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [prometheus]

@@ -1,0 +1,191 @@
+# Default values for aeos-langfuse chart.
+# Override per environment with values-non-prod.yaml or values-prod.yaml.
+#
+# Schema follows the upstream `langfuse-k8s` chart (see
+# https://github.com/langfuse/langfuse-k8s). Knobs we override here are
+# limited to: signing material refs, ingress (off — owned by aeos-observability),
+# bundled deps storageClass + sizing, telemetry phone-home, image policy.
+
+# ---------------------------------------------------------------------------
+# AWS Secrets Manager (ExternalSecret) — signing material for LangFuse
+# ---------------------------------------------------------------------------
+# Secret JSON shape at `secret.awsName`:
+#   {
+#     "nextauth-secret":      "<openssl rand -base64 32>",
+#     "salt":                 "<openssl rand -base64 32>",
+#     "encryption-key":       "<openssl rand -hex 32>",       # exactly 32 bytes hex
+#     "postgresql-password":  "<openssl rand -hex 24>",       # URL-safe — see below
+#     "redis-password":       "<openssl rand -hex 24>",
+#     "clickhouse-password":  "<openssl rand -hex 24>",
+#     "minio-root-user":      "minio",
+#     "minio-root-password":  "<openssl rand -hex 24>",
+#     "telemetry-public-key": "pk-lf-...",                    # OTel exporter creds
+#     "telemetry-secret-key": "sk-lf-..."
+#   }
+#
+# Dep passwords MUST be URL-safe (hex alphanumeric). `-base64` produces
+# `+`, `/`, `=` which break `postgresql://user:<pwd>@host:5432/db` — the
+# LangFuse chart injects the password raw into that connection string and
+# Prisma rejects with `P1013: invalid port number in database URL`.
+#
+# `nextauth-secret`, `salt`, `encryption-key` are generated once by the
+# operator post-apply (see infra/CLAUDE.md). The two `telemetry-*` keys are
+# minted inside LangFuse after first login (Project → API Keys) and then
+# pasted back into Secrets Manager so the OTel Collector exporter can use
+# them.
+clusterSecretStore:
+  name: aeos-cluster-store
+secret:
+  awsName: ""        # e.g. aeos/non-prod/platform/langfuse — set per env
+  k8sName: langfuse-env
+
+# ---------------------------------------------------------------------------
+# Upstream langfuse-k8s subchart values
+# ---------------------------------------------------------------------------
+langfuse:
+  langfuse:
+    nodeEnv: production
+
+    salt:
+      secretKeyRef:
+        name: langfuse-env
+        key: salt
+
+    encryptionKey:
+      secretKeyRef:
+        name: langfuse-env
+        key: encryption-key
+
+    nextauth:
+      url: ""        # set per-env to the public ingress URL
+      secret:
+        secretKeyRef:
+          name: langfuse-env
+          key: nextauth-secret
+
+    features:
+      telemetryEnabled: false
+      signUpDisabled: false           # leave open for first-admin bootstrap; flip to true after
+      experimentalFeaturesEnabled: false
+
+    # Upstream chart's Ingress is disabled — public exposure is owned by the
+    # langfuse-ingress template in aeos-observability so all AEOS ingresses
+    # share one set of nginx + Cloudflare conventions.
+    ingress:
+      enabled: false
+
+    # Default replicas (overridden per env).
+    replicas: 1
+
+    web:
+      service:
+        type: ClusterIP
+        port: 3000
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+
+    worker:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+
+  # Bundled Postgres — staging only. Prod must point at an RDS instance.
+  postgresql:
+    deploy: true
+    auth:
+      username: langfuse
+      database: langfuse_db
+      existingSecret: langfuse-env
+      secretKeys:
+        userPasswordKey: postgresql-password
+        adminPasswordKey: postgresql-password
+    architecture: standalone
+    primary:
+      persistence:
+        enabled: true
+        storageClass: gp3
+        size: 10Gi
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+
+  # Bundled ClickHouse — staging only. No managed AWS equivalent; prod
+  # variant keeps this in-cluster too.
+  clickhouse:
+    deploy: true
+    shards: 1
+    replicaCount: 1
+    clusterEnabled: true
+    resourcesPreset: small
+    auth:
+      username: default
+      existingSecret: langfuse-env
+      existingSecretKey: clickhouse-password
+    persistence:
+      enabled: true
+      storageClass: gp3
+      size: 30Gi
+    zookeeper:
+      enabled: true
+      replicaCount: 1
+      persistence:
+        enabled: true
+        storageClass: gp3
+        size: 5Gi
+
+  # Bundled Valkey/Redis — staging only. Prod swaps to ElastiCache.
+  redis:
+    deploy: true
+    architecture: standalone
+    auth:
+      username: "default"
+      existingSecret: langfuse-env
+      existingSecretPasswordKey: redis-password
+    primary:
+      persistence:
+        enabled: true
+        storageClass: gp3
+        size: 5Gi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+  # Bundled MinIO (S3-compatible) — staging only. Prod swaps to S3 bucket
+  # via IRSA.
+  s3:
+    deploy: true
+    storageProvider: "s3"
+    forcePathStyle: true
+    auth:
+      rootUser: minio
+      existingSecret: langfuse-env
+      rootUserSecretKey: minio-root-user
+      rootPasswordSecretKey: minio-root-password
+    persistence:
+      enabled: true
+      storageClass: gp3
+      size: 20Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi

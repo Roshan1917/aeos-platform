@@ -1,0 +1,33 @@
+{
+  "name": "@aeos/adapter-sdk",
+  "version": "0.1.0",
+  "description": "AEOS Agent Adapter SDK — build-time bindings generator for agent frameworks",
+  "bin": {
+    "aeos-sdk": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/canonical-schema": "workspace:*",
+    "@aeos/telemetry-sdk": "workspace:*",
+    "@opentelemetry/api": "^1.8.0"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  }
+}

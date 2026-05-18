@@ -1,0 +1,75 @@
+replicaCount: 2
+
+image:
+  repository: REPLACE_WITH_ECR_REPO/aeos-service-telemetry
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 3003
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 3003
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 3003
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# External Secrets Operator — syncs from AWS Secrets Manager.
+# Expected keys in the remote secret:
+#   DATABASE_URL, AUTH_JWT_SECRET, KAFKA_BROKERS, KAFKA_SASL_USERNAME,
+#   KAFKA_SASL_PASSWORD, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
+externalSecrets:
+  enabled: true
+  secretStoreName: aeos-cluster-store
+  refreshInterval: 1h
+
+env:
+  SERVICE_NAME: aeos-telemetry
+  PLATFORM_ENV: non-prod
+
+podLabels:
+  aeos.fuzebox/service: telemetry
+  aeos.fuzebox/layer: differentiated
+
+# Ingress matches the substrate-api convention: /api/telemetry(/|$)(.*) on
+# the platform host, with regex rewrite stripping the prefix before forwarding
+# to the upstream service. Host + enable flag set per-env in values-{env}.yaml.
+ingress:
+  enabled: false
+  className: nginx
+  host: ""
+  pathPrefix: /api/telemetry
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # Force Cloudflare proxy ON. external-dns chart 1.14.x ignores the
+    # global cloudflare.proxied value, so set it per-record.
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+
+# Run Alembic migrations as an init container before the service starts.
+# Image overridden in values-{env}.yaml so it tracks the same ECR tag as the
+# main container.
+initContainers:
+  - name: migrate
+    image: REPLACE_WITH_ECR_REPO/aeos-service-telemetry
+    command: ["alembic", "upgrade", "head"]
+    envFrom:
+      - secretRef:
+          name: telemetry-secrets

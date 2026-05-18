@@ -1,0 +1,51 @@
+# Ingress for LangFuse UI.
+# LangFuse is deployed as a separate Helm release or via docker-compose in local dev.
+# This ingress routes external traffic to the LangFuse service in the observability namespace.
+# When `ingress.clusterIssuerName` is empty, TLS is served by the cluster
+# default-ssl-certificate (Cloudflare Origin CA).
+{{- if .Values.ingress.langfuseHost }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: langfuse-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+    app.kubernetes.io/component: langfuse
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # LangFuse WebSocket support for live trace streaming
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.ingress.langfuseHost }}
+    # Force Cloudflare proxy ON — global `cloudflare.proxied` chart value
+    # is not honored on external-dns 1.14.x; per-record annotation only.
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    {{- if .Values.ingress.clusterIssuerName }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuerName }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  {{- if .Values.ingress.clusterIssuerName }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.langfuseHost }}
+      secretName: langfuse-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.langfuseHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # Upstream langfuse-k8s chart creates `<release>-web`. The
+                # ArgoCD Application pins release name to `langfuse`, so
+                # this resolves to the langfuse-web Service.
+                name: langfuse-web
+                port:
+                  number: 3000
+{{- end }}

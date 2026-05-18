@@ -1,0 +1,7 @@
+packages:
+  - "packages/*"
+  - "services/*"
+  - "sdk/**"
+  - "apps/*"
+  - "!services/_template-ts"
+  - "!services/_template-py"

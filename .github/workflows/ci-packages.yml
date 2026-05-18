@@ -1,0 +1,242 @@
+name: CI — Shared Packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - '.github/workflows/ci-packages.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/**'
+
+# ---------------------------------------------------------------------------
+# Python package roots — update when adding new Python packages
+# ---------------------------------------------------------------------------
+env:
+  PYTHON_PACKAGES: |
+    packages/canonical-schema
+    packages/auth-client/src/python
+    packages/event-bus-client/src/python
+    packages/registry-client/src/python
+    packages/telemetry-sdk/src/python
+
+jobs:
+  # -------------------------------------------------------------------------
+  # TypeScript: lint, typecheck, build, test
+  # -------------------------------------------------------------------------
+  ts-build-test:
+    name: TS — build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@aeos'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build first — typecheck runs `tsc --noEmit` and downstream
+      # packages need canonical-schema's dist/*.d.ts to resolve.
+      - name: Build packages
+        run: pnpm --filter './packages/**' build
+
+      # Scope to packages — services have their own CI workflows
+      # and may need extra setup (prisma generate, etc.).
+      - name: Typecheck
+        run: pnpm --filter './packages/**' typecheck
+
+      - name: Test
+        run: pnpm --filter './packages/**' test
+
+  # -------------------------------------------------------------------------
+  # Python: lint, build, test — one job per package via matrix
+  # -------------------------------------------------------------------------
+  py-build-test:
+    name: Python — ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - packages/canonical-schema
+          - packages/auth-client/src/python
+          - packages/event-bus-client/src/python
+          - packages/registry-client/src/python
+          - packages/telemetry-sdk/src/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install package + dev deps
+        working-directory: ${{ matrix.package }}
+        run: pip install -e ".[dev]"
+
+      - name: Ruff lint (if configured)
+        working-directory: ${{ matrix.package }}
+        run: |
+          if pip show ruff >/dev/null 2>&1; then
+            ruff check .
+          fi
+
+      - name: Pytest
+        working-directory: ${{ matrix.package }}
+        # tests/ may not exist yet — skip gracefully
+        run: |
+          if [ -d tests ]; then
+            pytest tests/ -v
+          else
+            echo "No tests directory — skipping"
+          fi
+
+      - name: Build wheel + sdist
+        working-directory: ${{ matrix.package }}
+        run: |
+          pip install build
+          python -m build
+
+  # -------------------------------------------------------------------------
+  # npm publish — runs only on main push, after both build-test jobs
+  # -------------------------------------------------------------------------
+  ts-publish:
+    name: Publish @aeos/* to GitHub Packages
+    needs: [ts-build-test, py-build-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@aeos'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm --filter './packages/**' build
+
+      - name: Publish changed packages
+        run: pnpm release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # -------------------------------------------------------------------------
+  # PyPI publish — runs only on main push, after both build-test jobs.
+  #
+  # Target: AWS CodeArtifact private PyPI (domain `aeos`, repo `aeos-pypi`)
+  # provisioned by infra/terraform/modules/codeartifact in the non-prod
+  # account. Auth is OIDC: the job assumes the existing CI role and runs
+  # `aws codeartifact login --tool twine` which writes a 12h-TTL token into
+  # ~/.pypirc. No long-lived AEOS_PYPI_TOKEN secret is required.
+  #
+  # CodeArtifact's PyPI endpoint rejects twine's `--skip-existing` flag
+  # (UnsupportedConfiguration). Idempotency is implemented by querying
+  # `aws codeartifact list-package-versions` before upload and skipping
+  # the matrix entry when the (package, version) tuple already exists.
+  # Bump the package's pyproject.toml version when you actually want a
+  # new release on the index.
+  # -------------------------------------------------------------------------
+  py-publish:
+    name: Publish aeos-* to CodeArtifact
+    needs: [ts-build-test, py-build-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: non-prod
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - packages/canonical-schema
+          - packages/auth-client/src/python
+          - packages/event-bus-client/src/python
+          - packages/registry-client/src/python
+          - packages/telemetry-sdk/src/python
+    env:
+      AWS_REGION: us-east-1
+      CODEARTIFACT_DOMAIN: aeos
+      CODEARTIFACT_REPOSITORY: aeos-pypi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build + twine
+        run: pip install build twine
+
+      - name: Build wheel + sdist
+        working-directory: ${{ matrix.package }}
+        run: python -m build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_NON_PROD }}:role/aeos-github-actions-terraform
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to CodeArtifact (writes token to ~/.pypirc)
+        run: |
+          aws codeartifact login \
+            --tool twine \
+            --domain "${CODEARTIFACT_DOMAIN}" \
+            --repository "${CODEARTIFACT_REPOSITORY}" \
+            --region "${AWS_REGION}"
+
+      - name: Skip if (package, version) already published
+        id: dedup
+        working-directory: ${{ matrix.package }}
+        run: |
+          NAME=$(python -c "import tomllib,sys; print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])")
+          VERSION=$(python -c "import tomllib,sys; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          # Empty string when not present; query by version filter.
+          EXISTING=$(aws codeartifact list-package-versions \
+            --domain "${CODEARTIFACT_DOMAIN}" \
+            --repository "${CODEARTIFACT_REPOSITORY}" \
+            --format pypi \
+            --package "${NAME}" \
+            --query "versions[?version=='${VERSION}'].version | [0]" \
+            --output text 2>/dev/null || echo "")
+          if [[ -n "${EXISTING}" && "${EXISTING}" != "None" ]]; then
+            echo "Already published: ${NAME}==${VERSION}; skipping upload."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to CodeArtifact
+        if: steps.dedup.outputs.skip != 'true'
+        working-directory: ${{ matrix.package }}
+        run: |
+          twine upload \
+            --repository codeartifact \
+            --non-interactive \
+            dist/*

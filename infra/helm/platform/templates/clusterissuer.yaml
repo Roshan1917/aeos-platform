@@ -1,0 +1,43 @@
+# cert-manager ClusterIssuers — Let's Encrypt ACME.
+# Staging issuer uses the test CA (no rate limits, untrusted certs).
+# Production issuer issues trusted certs — used in prod only.
+{{- if .Values.clusterIssuer.staging.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.clusterIssuer.staging.name }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+spec:
+  acme:
+    email: {{ .Values.clusterIssuer.email }}
+    server: {{ .Values.clusterIssuer.staging.server }}
+    privateKeySecretRef:
+      name: {{ .Values.clusterIssuer.staging.name }}-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: {{ .Values.clusterIssuer.ingressClass }}
+{{- end }}
+{{- if .Values.clusterIssuer.production.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.clusterIssuer.production.name }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+spec:
+  acme:
+    email: {{ .Values.clusterIssuer.email }}
+    server: {{ .Values.clusterIssuer.production.server }}
+    privateKeySecretRef:
+      name: {{ .Values.clusterIssuer.production.name }}-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: {{ .Values.clusterIssuer.ingressClass }}
+{{- end }}

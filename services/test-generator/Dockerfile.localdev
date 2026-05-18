@@ -1,0 +1,23 @@
+FROM node:20-bullseye-slim
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/ ./packages/
+COPY services/test-generator/package.json ./services/test-generator/package.json
+
+RUN pnpm install --frozen-lockfile
+
+RUN pnpm --filter @aeos/canonical-schema build
+RUN pnpm --filter @aeos/auth-client build
+RUN pnpm --filter @aeos/telemetry-sdk build
+
+COPY services/test-generator/ ./services/test-generator/
+
+RUN cd services/test-generator && npx prisma generate
+RUN pnpm --filter @aeos/test-generator build
+
+WORKDIR /app/services/test-generator
+EXPOSE 3005
+CMD ["sh", "-c", "../../node_modules/.pnpm/node_modules/.bin/prisma migrate deploy --schema=./prisma/schema.prisma && node dist/main.js"]

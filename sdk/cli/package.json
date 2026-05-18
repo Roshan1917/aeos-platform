@@ -1,0 +1,28 @@
+{
+  "name": "@aeos/sdk-cli",
+  "version": "0.1.0",
+  "description": "AEOS Adapter SDK CLI — generate, validate, and list adapter bindings",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "aeos-sdk": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@aeos/adapter-sdk": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

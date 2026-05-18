@@ -1,0 +1,33 @@
+{
+  "name": "@aeos/openapi-helpers",
+  "version": "0.1.0",
+  "description": "AEOS OpenAPI helpers — zod-to-openapi registry, Swagger UI router, shared security schemes",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.0.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.22.0"
+  },
+  "peerDependencies": {
+    "express": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0",
+    "@types/swagger-ui-express": "^4.1.6",
+    "typescript": "*",
+    "vitest": "*"
+  }
+}

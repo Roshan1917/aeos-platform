@@ -1,0 +1,19 @@
+# Prod overrides for aeos-observability chart.
+
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      retention: 30d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 50Gi
+
+ingress:
+  host: "grafana.aeos.fuzebox.ai"
+  langfuseHost: "langfuse.aeos.fuzebox.ai"
+  ingressClassName: nginx
+  # Cloudflare Origin CA covers TLS via cluster default-ssl-certificate.
+  clusterIssuerName: ""

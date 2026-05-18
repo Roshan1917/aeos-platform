@@ -1,0 +1,46 @@
+replicaCount: 2
+
+image:
+  repository: REPLACE_WITH_ECR_REPO/aeos-service-recommendations
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 3004
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 3004
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 3004
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+externalSecrets:
+  enabled: true
+  secretStoreName: aeos-secret-store
+  refreshInterval: 1h
+
+env:
+  SERVICE_NAME: aeos-recommendations
+  PLATFORM_ENV: non-prod
+
+labels:
+  app.kubernetes.io/part-of: aeos-platform
+  aeos.fuzebox/service: recommendations
+  aeos.fuzebox/namespace: differentiated

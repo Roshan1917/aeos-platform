@@ -1,0 +1,51 @@
+apiVersion: v2
+name: aeos-observability
+description: >
+  AEOS Platform — observability stack Helm chart.
+  Installs Grafana, kube-prometheus-stack (Prometheus + Alertmanager), and
+  OpenTelemetry Collector. LangFuse is deployed by the sibling aeos-langfuse
+  chart (infra/helm/langfuse, own ArgoCD Application, same `observability`
+  namespace). The public LangFuse Ingress lives in this chart so all AEOS
+  ingresses share one set of nginx + Cloudflare conventions.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aeos
+  - fuzebox
+  - observability
+  - grafana
+  - prometheus
+  - opentelemetry
+home: https://github.com/fuzebox/aeos-platform
+maintainers:
+  - name: Platform Team
+    email: platform-team@fuzebox.ai
+annotations:
+  "app.kubernetes.io/part-of": "aeos-platform"
+
+dependencies:
+  - name: grafana
+    version: "7.3.*"
+    repository: https://grafana.github.io/helm-charts
+
+  - name: kube-prometheus-stack
+    version: "58.*"
+    repository: https://prometheus-community.github.io/helm-charts
+
+  - name: opentelemetry-collector
+    version: "0.91.*"
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+
+  # Loki — log aggregation backend (single-binary mode for non-prod;
+  # swap to scalable mode + S3 backend in prod-values follow-up).
+  - name: loki
+    version: "6.*"
+    repository: https://grafana.github.io/helm-charts
+
+  # Promtail — DaemonSet that tails pod logs from each node and ships
+  # them to Loki. Promtail is in maintenance mode upstream; migrating
+  # to Grafana Alloy is a follow-up.
+  - name: promtail
+    version: "6.*"
+    repository: https://grafana.github.io/helm-charts

@@ -1,0 +1,135 @@
+name: CI — Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/ci-infra.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+  # Manual run is the only path to `terraform-apply` while auto-apply is
+  # paused (non-prod cluster torn down — see comment on the apply job).
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.8.0'
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive infra/terraform/
+
+      - name: Terraform validate (non-prod)
+        working-directory: infra/terraform/environments/non-prod
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Terraform validate (prod)
+        working-directory: infra/terraform/environments/prod
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+  terraform-plan:
+    needs: terraform-validate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment: non-prod-plan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_NON_PROD }}:role/aeos-github-actions-terraform
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.8.0'
+
+      - name: Terraform plan
+        working-directory: infra/terraform/environments/non-prod
+        run: |
+          terraform init
+          terraform plan -no-color -out=tfplan
+        continue-on-error: true
+
+  terraform-apply:
+    needs: terraform-validate
+    # Auto-apply on merge to main is disabled while non-prod is destroyed.
+    # Re-enable by restoring `github.ref == 'refs/heads/main' && github.event_name == 'push'`.
+    # Until then this job is gated behind manual workflow_dispatch only.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: non-prod
+    outputs:
+      cluster_name: ${{ steps.tf-outputs.outputs.cluster_name }}
+      aws_region: ${{ steps.tf-outputs.outputs.aws_region }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_NON_PROD }}:role/aeos-github-actions-terraform
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.8.0'
+
+      - name: Terraform apply
+        working-directory: infra/terraform/environments/non-prod
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Capture terraform outputs
+        id: tf-outputs
+        working-directory: infra/terraform/environments/non-prod
+        run: |
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> "$GITHUB_OUTPUT"
+          echo "aws_region=us-east-1" >> "$GITHUB_OUTPUT"
+
+  bootstrap-cluster:
+    needs: terraform-apply
+    # Gated to manual runs while non-prod is destroyed. Re-enable alongside
+    # terraform-apply by restoring the original `push` condition.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: non-prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_NON_PROD }}:role/aeos-github-actions-terraform
+          aws-region: us-east-1
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Run bootstrap-cluster.sh
+        run: |
+          chmod +x infra/scripts/bootstrap-cluster.sh
+          infra/scripts/bootstrap-cluster.sh non-prod us-east-1

@@ -1,0 +1,47 @@
+# Exposes the ArgoCD argocd-server Service via ingress-nginx.
+# ArgoCD itself is installed by infra/scripts/bootstrap-cluster.sh into
+# the argocd namespace with server.service.type=ClusterIP. This Ingress
+# adds external access. Leave argocdIngress.host empty to skip.
+{{- if .Values.argocdIngress.host }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+    app.kubernetes.io/component: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.argocdIngress.host }}
+    # Force Cloudflare proxy ON. The external-dns chart in use (v1.14.x)
+    # does not honor the global `cloudflare.proxied: true` value — only
+    # the per-record annotation is respected, so set it on every Ingress.
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    {{- if .Values.argocdIngress.clusterIssuerName }}
+    cert-manager.io/cluster-issuer: {{ .Values.argocdIngress.clusterIssuerName }}
+    {{- end }}
+spec:
+  ingressClassName: nginx
+  {{- if .Values.argocdIngress.clusterIssuerName }}
+  tls:
+    - hosts:
+        - {{ .Values.argocdIngress.host }}
+      secretName: argocd-server-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.argocdIngress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443
+{{- end }}

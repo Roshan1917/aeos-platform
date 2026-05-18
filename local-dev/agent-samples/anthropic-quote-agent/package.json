@@ -1,0 +1,21 @@
+{
+  "name": "@aeos/sample-anthropic-quote-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sample agent: real Anthropic call, emits AEOS telemetry spans for local-dev demo",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

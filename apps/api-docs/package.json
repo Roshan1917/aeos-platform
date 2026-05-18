@@ -1,0 +1,19 @@
+{
+  "name": "@aeos/api-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AEOS API documentation portal — Scalar-based aggregator over per-service OpenAPI specs",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "vite build",
+    "preview": "vite preview --port 5174"
+  },
+  "dependencies": {
+    "@scalar/api-reference": "^1.25.0"
+  },
+  "devDependencies": {
+    "typescript": "*",
+    "vite": "^5.0.0"
+  }
+}

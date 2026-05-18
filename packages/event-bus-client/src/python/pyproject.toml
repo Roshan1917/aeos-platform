@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aeos-event-bus-client"
+version = "0.1.0"
+description = "AEOS tenant-scoped Kafka producer and consumer"
+requires-python = ">=3.11"
+dependencies = [
+    "aiokafka>=0.10.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["aeos_event_bus_client"]

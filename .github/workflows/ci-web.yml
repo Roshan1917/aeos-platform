@@ -1,0 +1,51 @@
+name: CI — Web (apps/web)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/canonical-schema/**'
+      - '.github/workflows/ci-web.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/canonical-schema/**'
+
+jobs:
+  build-test:
+    name: TS — typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@aeos'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build canonical-schema first — apps/web's tsconfig resolves
+      # @aeos/canonical-schema via its dist/*.d.ts.
+      - name: Build canonical-schema
+        run: pnpm --filter @aeos/canonical-schema build
+
+      - name: Typecheck
+        working-directory: apps/web
+        run: pnpm typecheck
+
+      - name: Test
+        working-directory: apps/web
+        run: pnpm test
+
+      - name: Build SPA
+        working-directory: apps/web
+        run: pnpm build

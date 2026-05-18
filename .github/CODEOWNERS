@@ -1,0 +1,21 @@
+# Platform team owns shared infrastructure
+/packages/           @fuzebox/platform-team
+/infra/              @fuzebox/platform-team
+/local-dev/          @fuzebox/platform-team
+/.github/            @fuzebox/platform-team
+/sdk/                @fuzebox/platform-team
+/templates/          @fuzebox/platform-team
+
+# CTO owns patent-adjacent canonical schema types
+/packages/canonical-schema/src/types/ledger-row.ts   @danny
+/packages/canonical-schema/src/types/boundary.ts      @danny
+/packages/canonical-schema/src/types/uop.ts           @danny
+/packages/canonical-schema/src/types/attestation.ts   @danny
+/packages/canonical-schema/src/python/aeos_canonical_schema/types.py @danny
+
+# Root CLAUDE.md and docs require platform team review
+/CLAUDE.md           @fuzebox/platform-team
+/docs/               @fuzebox/platform-team
+
+# Service ownership (fill in as teams are assigned)
+/services/substrate/ @fuzebox/platform-team

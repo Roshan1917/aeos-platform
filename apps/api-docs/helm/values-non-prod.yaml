@@ -1,0 +1,23 @@
+replicaCount: 1
+image:
+  repository: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-api-docs
+  tag: "latest"
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: staging-api-docs.aeos.fuzebox.ai
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  hosts:
+    - host: staging-api-docs.aeos.fuzebox.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  backends:
+    substrate:        { service: substrate,        port: 80 }
+    telemetry:        { service: telemetry,        port: 80 }
+    recommendations:  { service: recommendations,  port: 80 }
+    discovery:        { service: discovery,        port: 80 }
+    test-generator:   { service: test-generator,   port: 80 }

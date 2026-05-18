@@ -1,0 +1,53 @@
+# Non-prod overrides for aeos-observability chart.
+
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      retention: 7d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 20Gi
+      resources:
+        limits:
+          cpu: 500m
+          memory: 2Gi
+
+grafana:
+  persistence:
+    size: 5Gi
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+opentelemetry-collector:
+  replicaCount: 1
+
+loki:
+  singleBinary:
+    persistence:
+      size: 10Gi
+  loki:
+    limits_config:
+      retention_period: 72h        # 3 days in non-prod to save disk
+
+promtail:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+ingress:
+  # Flat one-label-deep hosts so the existing Cloudflare Origin CA cert
+  # for *.aeos.fuzebox.ai covers all of them (a `*.<env>.aeos.fuzebox.ai`
+  # cert would be needed for two-deep names).
+  host: "staging-grafana.aeos.fuzebox.ai"
+  langfuseHost: "staging-langfuse.aeos.fuzebox.ai"
+  ingressClassName: nginx
+  # cert-manager issuer is unused in non-prod — Cloudflare Origin CA serves
+  # all NLB-fronted TLS via the cluster-wide default-ssl-certificate
+  # (ingress-nginx/cloudflare-origin-tls). Kept for prod compatibility.
+  clusterIssuerName: ""

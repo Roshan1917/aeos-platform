@@ -1,0 +1,51 @@
+replicaCount: 1
+
+image:
+  repository: REPLACE_WITH_ECR_REPO/aeos-api-docs
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet: { path: /healthz, port: 80 }
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet: { path: /healthz, port: 80 }
+  initialDelaySeconds: 2
+  periodSeconds: 5
+
+# Ingress fronts the SPA and reverse-proxies /api/<svc>/openapi.json into
+# each upstream service. Hosts + per-service backends set per-environment.
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts: []
+  # Map of svc → in-cluster Service name + port. Path /api/<svc> rewrites to /
+  # at the upstream so /api/substrate/openapi.json hits substrate's /openapi.json.
+  backends: {}
+  # Example shape (set in values-{env}.yaml):
+  # backends:
+  #   substrate:        { service: substrate,        port: 80 }
+  #   telemetry:        { service: telemetry,        port: 80 }
+  #   recommendations:  { service: recommendations,  port: 80 }
+  #   discovery:        { service: discovery,        port: 80 }
+  #   test-generator:   { service: test-generator,   port: 80 }
+
+labels:
+  app.kubernetes.io/part-of: aeos-platform
+  aeos.fuzebox/service: api-docs
+  aeos.fuzebox/namespace: platform

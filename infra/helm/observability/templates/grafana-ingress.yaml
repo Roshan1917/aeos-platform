@@ -1,0 +1,45 @@
+# Ingress for Grafana UI.
+# When `ingress.clusterIssuerName` is set, cert-manager handles TLS via that
+# ClusterIssuer (Let's Encrypt path). When empty, the Ingress relies on the
+# cluster-wide default-ssl-certificate (Cloudflare Origin CA in non-prod /
+# prod) — no per-Ingress tls block, no cert-manager annotation.
+{{- if .Values.ingress.host }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: observability
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+    app.kubernetes.io/component: grafana
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.ingress.host }}
+    # Force Cloudflare proxy ON — global `cloudflare.proxied` chart value
+    # is not honored on external-dns 1.14.x; per-record annotation only.
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    {{- if .Values.ingress.clusterIssuerName }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuerName }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  {{- if .Values.ingress.clusterIssuerName }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: grafana-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aeos-observability-grafana
+                port:
+                  number: 80
+{{- end }}

@@ -1,0 +1,30 @@
+# Non-prod overrides for the recommendations Helm chart.
+# Applied by ArgoCD on top of values.yaml.
+
+replicaCount: 1
+
+image:
+  repository: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-recommendations
+  tag: "latest"
+
+externalSecrets:
+  refreshInterval: 5m
+  secrets:
+    - name: recommendations-secrets
+      remoteRef:
+        key: aeos/non-prod/recommendations
+
+env:
+  SERVICE_NAME: aeos-recommendations
+  PLATFORM_ENV: non-prod
+  AUTH_SERVICE_URL: http://aeos-substrate.substrate.svc.cluster.local:3002
+  KAFKA_BROKERS: "" # populated from External Secrets (msk_bootstrap_brokers_sasl)
+  # SUBSCRIBE_TENANT_IDS is populated post-deploy via External Secrets or kubectl set env.
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 384Mi

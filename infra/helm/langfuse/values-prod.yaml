@@ -1,0 +1,31 @@
+# Prod overrides for aeos-langfuse chart.
+# NOTE: This deploys the staging-shape stack (in-cluster Postgres + Redis +
+# MinIO) into prod as a placeholder. Before flipping prod live, swap the
+# bundled Postgres → RDS, Redis → ElastiCache, MinIO → S3 (via IRSA).
+# Tracked as a follow-up in infra/CLAUDE.md.
+
+secret:
+  awsName: aeos/prod/platform/langfuse
+
+langfuse:
+  langfuse:
+    nextauth:
+      url: "https://langfuse.aeos.fuzebox.ai"
+    features:
+      telemetryEnabled: false
+      signUpDisabled: true
+      experimentalFeaturesEnabled: false
+    replicas: 2
+    web:
+      replicas: 2
+    worker:
+      replicas: 2
+
+  postgresql:
+    primary:
+      persistence:
+        size: 50Gi
+
+  clickhouse:
+    persistence:
+      size: 100Gi

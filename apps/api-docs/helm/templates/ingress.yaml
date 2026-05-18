@@ -1,0 +1,42 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "api-docs.fullname" . }}
+  labels:
+    {{- include "api-docs.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          # Per-service rewrite paths so the portal can fetch each spec via
+          # `/api/<svc>/openapi.json`. The ingress strips `/api/<svc>` and
+          # forwards `/openapi.json` (and `/docs`, `/v1/...`) to the upstream.
+          {{- range $svc, $backend := $.Values.ingress.backends }}
+          - path: /api/{{ $svc }}(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ $backend.service }}
+                port:
+                  number: {{ $backend.port }}
+          {{- end }}
+          # SPA fallback — must come last.
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "api-docs.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

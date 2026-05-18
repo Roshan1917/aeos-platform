@@ -1,0 +1,47 @@
+// AEOS Test-Case Generator — Prisma schema
+// Single tenant-scoped table holding LLM-generated sample processes.
+
+generator client {
+  provider = "prisma-client-js"
+  // Per-service output dir keeps the client isolated from other services'
+  // Prisma clients. Without this, pnpm hoists `@prisma/client` to the
+  // workspace root and `pnpm prisma generate` from one service overwrites
+  // every other service's models in local dev.
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Cached telemetry ingest token per tenant. Test-generator mints one on-demand
+// (requires the caller to be a tenant admin) and reuses it for subsequent runs
+// regardless of which user triggered them. The token is opaque (HMAC-signed by
+// telemetry); we store the raw value because there's no other way to replay it
+// to telemetry on every span post.
+model TenantTelemetryToken {
+  tenantId  String   @id @map("tenant_id")
+  tokenId   String   @map("token_id")
+  token     String
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("tenant_telemetry_tokens")
+}
+
+model TestCase {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  title       String
+  description String   @default("")
+  agentHint   String   @default("") @map("agent_hint")
+  uopHint     String   @default("") @map("uop_hint")
+  planJson    Json     @map("plan_json") // TestCase JSON (steps array etc.)
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@map("test_cases")
+}

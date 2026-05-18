@@ -1,0 +1,27 @@
+# O*NET bulk database dumps — kept locally, never committed.
+# Source: https://www.onetcenter.org/database.html
+# Re-download from upstream rather than committing (large + versioned by O*NET).
+# Match any versioned O*NET dump folder (db_30_2_excel, db_30_3_excel, db_31_0_text, etc.)
+db_*_excel/
+db_*_text/
+db_*_mysql/
+# Also catch legacy generic folder names if used
+db-excel/
+db-text/
+db-mysql/
+*.zip
+*.xlsx
+*.csv
+*.tsv
+
+# DuckDB / SQLite scratch files
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+
+# Local credentials — never commit
+.env
+.env.*
+!.env.example
+credentials.*

@@ -1,0 +1,236 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "datasource", "uid": "grafana" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "AEOS log explorer — pod logs shipped by Promtail into Loki, filterable by namespace / pod / level / search text.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "uid": "aeos-logs",
+  "title": "AEOS — Logs",
+  "tags": ["aeos", "platform", "logs"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "loki",
+        "current": { "text": "Loki", "value": "Loki" },
+        "hide": 0,
+        "label": "Datasource",
+        "refresh": 1
+      },
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "query": { "label": "namespace", "stream": "{namespace=~\"substrate|differentiated|platform|observability\"}", "type": 1 },
+        "definition": "label_values(namespace)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "label": "Namespace",
+        "sort": 1
+      },
+      {
+        "name": "pod",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "query": { "label": "pod", "stream": "{namespace=~\"$namespace\"}", "type": 1 },
+        "definition": "label_values({namespace=~\"$namespace\"}, pod)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "label": "Pod",
+        "sort": 1
+      },
+      {
+        "name": "level",
+        "type": "custom",
+        "query": "All,trace,debug,info,warn,error,fatal",
+        "current": { "text": "All", "value": "$__all" },
+        "includeAll": true,
+        "multi": true,
+        "label": "Level"
+      },
+      {
+        "name": "search",
+        "type": "textbox",
+        "current": { "text": "", "value": "" },
+        "label": "Search"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "id": 1,
+      "title": "Log lines (selected window)",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)$search\" [$__range]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "type": "stat",
+      "id": 2,
+      "title": "Errors (selected window)",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" |~ \"(?i)$search\" [$__range]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 100 }] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "type": "stat",
+      "id": 3,
+      "title": "Active pods producing logs",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "count(count by (pod) (count_over_time({namespace=~\"$namespace\",pod=~\"$pod\"} [$__range])))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "Top noisy pod",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "topk(1, sum by (pod) (count_over_time({namespace=~\"$namespace\",pod=~\"$pod\"} [$__range])))",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "options": { "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "type": "timeseries",
+      "id": 5,
+      "title": "Log volume by namespace",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (namespace) (rate({namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)$search\" [1m]))",
+          "legendFormat": "{{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } } }
+    },
+    {
+      "type": "timeseries",
+      "id": 6,
+      "title": "Error / warn rate by pod",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (pod) (rate({namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" [1m]))",
+          "legendFormat": "err {{pod}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (pod) (rate({namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)warn\" [1m]))",
+          "legendFormat": "warn {{pod}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "type": "logs",
+      "id": 7,
+      "title": "Live logs",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 18, "w": 24, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "{namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)$search\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "type": "row",
+      "id": 100,
+      "title": "Top error sources",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "panels": [
+        {
+          "type": "table",
+          "id": 8,
+          "title": "Top 20 pods by error count",
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 31 },
+          "targets": [
+            {
+              "expr": "topk(20, sum by (namespace, pod) (count_over_time({namespace=~\"$namespace\",pod=~\"$pod\"} |~ \"(?i)(error|fatal|panic|exception|traceback)\" [$__range])))",
+              "instant": true,
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } },
+          "options": { "showHeader": true }
+        }
+      ]
+    }
+  ]
+}

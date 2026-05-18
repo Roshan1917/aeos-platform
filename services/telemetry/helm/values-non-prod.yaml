@@ -1,0 +1,69 @@
+# Non-prod overrides for the telemetry Helm chart.
+# Applied by ArgoCD on top of values.yaml.
+
+replicaCount: 1
+image:
+  repository: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-telemetry
+  tag: "8d25fba"
+externalSecrets:
+  refreshInterval: 5m
+  secrets:
+    - name: telemetry-secrets
+      remoteRef:
+        key: aeos/non-prod/telemetry
+env:
+  SERVICE_NAME: aeos-telemetry
+  PLATFORM_ENV: non-prod
+  AUTH_SERVICE_URL: http://aeos-substrate.substrate.svc.cluster.local:3002
+  REGISTRY_URL: http://aeos-substrate.substrate.svc.cluster.local:3002
+  # MSK brokers listen on :9096 with SASL_SSL. Without this flag the
+  # AeosProducer in @aeos/event-bus-client falls back to SASL_PLAINTEXT
+  # and bootstrap fails with `KafkaConnectionError: Unable to bootstrap`.
+  # KAFKA_BROKERS + KAFKA_SASL_USERNAME + KAFKA_SASL_PASSWORD come from
+  # telemetry-secrets via envFrom.
+  KAFKA_SSL: "true"
+  # LangFuse mirror is disabled in non-prod: the observability namespace has
+  # an ingress for staging-langfuse.aeos.fuzebox.ai but no Pod backing it
+  # (per `kubectl get all -n observability`), so any mirror call would 503.
+  # Flip to "true" + populate LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY in
+  # aeos/non-prod/telemetry once LangFuse is actually deployed.
+  LANGFUSE_ENABLED: "false"
+  ENRICHMENT_VERSION: "1.0"
+  ENRICHMENT_CACHE_TTL_SECONDS: "30"
+ingress:
+  enabled: true
+  host: staging.aeos.fuzebox.ai
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+# Override the migrate init container to use the same ECR image as the main
+# container. CI bump-values pins the tag to the build SHA on every release.
+#
+# `env:` is duplicated from the top-level `.Values.env` block because the
+# chart renders `initContainers` raw via `toYaml`; the deployment template's
+# env-merge logic only runs for the main container. Alembic env.py imports
+# src.config which validates ALL fields at import time (AUTH_SERVICE_URL +
+# REGISTRY_URL are required), so the migrate Pod needs them too even though
+# it never makes a network call to substrate.
+initContainers:
+  - name: migrate
+    image: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-telemetry:8d25fba
+    command: ["alembic", "upgrade", "head"]
+    env:
+      - name: SERVICE_NAME
+        value: aeos-telemetry
+      - name: PLATFORM_ENV
+        value: non-prod
+      - name: AUTH_SERVICE_URL
+        value: http://aeos-substrate.substrate.svc.cluster.local:3002
+      - name: REGISTRY_URL
+        value: http://aeos-substrate.substrate.svc.cluster.local:3002
+      - name: LANGFUSE_ENABLED
+        value: "false"
+    envFrom:
+      - secretRef:
+          name: telemetry-secrets

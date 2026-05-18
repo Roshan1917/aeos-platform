@@ -1,0 +1,69 @@
+{
+  "format": "aeos.uop.bundle",
+  "format_version": "1.0",
+  "exported_at": "2026-05-11T12:00:00Z",
+  "source_tenant_id": "tenant_dev_001",
+  "items": [
+    {
+      "name": "Accelerate Inbound Lead Qualification",
+      "description": "Triage and score inbound MQLs to shorten time-to-first-touch.",
+      "category": "revenue_generation",
+      "system_of_record": "salesforce",
+      "sor_object_type": "Lead",
+      "sor_metric_field": "ConvertedOpportunityAmount",
+      "baseline_value": 125000,
+      "baseline_currency": "USD",
+      "owner_team": "sales-ops"
+    },
+    {
+      "name": "Reduce Tier-1 Support Handle Time",
+      "description": "Auto-resolve common tier-1 tickets via knowledge-base lookup and templated replies.",
+      "category": "cost_reduction",
+      "system_of_record": "servicenow",
+      "sor_object_type": "incident",
+      "sor_metric_field": "avg_handle_time_seconds",
+      "baseline_value": 480,
+      "owner_team": "customer-support"
+    },
+    {
+      "name": "Flag High-Risk Vendor Contracts",
+      "description": "Scan inbound vendor agreements for clauses that breach procurement policy.",
+      "category": "risk_mitigation",
+      "system_of_record": "sap",
+      "sor_object_type": "PurchaseAgreement",
+      "sor_metric_field": "flagged_clause_count",
+      "baseline_value": 0,
+      "owner_team": "procurement"
+    },
+    {
+      "name": "Expedite GDPR Subject Access Requests",
+      "description": "Aggregate personal data across CRM/HRIS/billing to fulfill SAR within statutory window.",
+      "category": "compliance",
+      "system_of_record": "custom",
+      "sor_object_type": "SubjectAccessRequest",
+      "sor_metric_field": "days_to_fulfill",
+      "baseline_value": 25,
+      "owner_team": "legal-privacy"
+    },
+    {
+      "name": "Personalize Onboarding Email Sequence",
+      "description": "Tailor first-30-day emails to product-usage signals to lift activation rate.",
+      "category": "customer_experience",
+      "system_of_record": "hubspot",
+      "sor_object_type": "Contact",
+      "sor_metric_field": "activation_rate_pct",
+      "baseline_value": 32,
+      "owner_team": "lifecycle-marketing"
+    },
+    {
+      "name": "Automate Month-End Journal Entries",
+      "description": "Generate recurring accruals and inter-company reclasses from ERP postings.",
+      "category": "operational_efficiency",
+      "system_of_record": "oracle",
+      "sor_object_type": "JournalEntry",
+      "sor_metric_field": "manual_entry_count",
+      "baseline_value": 180,
+      "owner_team": "finance-controllership"
+    }
+  ]
+}

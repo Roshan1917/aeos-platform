@@ -1,0 +1,13 @@
+# AEOS platform namespaces.
+# These four namespaces are the top-level isolation boundaries in the EKS cluster.
+{{- range .Values.namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ . }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: aeos-platform
+    aeos.fuzebox/namespace: {{ . }}
+{{- end }}

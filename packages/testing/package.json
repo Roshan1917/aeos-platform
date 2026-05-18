@@ -1,0 +1,23 @@
+{
+  "name": "@aeos/testing",
+  "version": "0.1.0",
+  "description": "AEOS shared test fixtures, factories, and mocks",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/canonical-schema": "workspace:*",
+    "jsonwebtoken": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "*"
+  },
+  "publishConfig": { "access": "restricted", "registry": "https://npm.pkg.github.com" }
+}

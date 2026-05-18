@@ -1,0 +1,32 @@
+# Prod overrides for the @aeos/web Helm chart.
+# Applied by ArgoCD on top of values.yaml.
+
+replicaCount: 3
+
+image:
+  tag: "main"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    # external-dns reads this hostname and creates a Cloudflare DNS record.
+    external-dns.alpha.kubernetes.io/hostname: app.aeos.fuzebox.ai
+    # Force Cloudflare proxy ON. The external-dns chart in use (v1.14.x)
+    # ignores the global cloudflare.proxied value, so set it per-record.
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+  hosts:
+    - host: app.aeos.fuzebox.ai
+      paths:
+        - path: /
+          pathType: Prefix
+  # TLS at the origin uses the cluster-wide default-ssl-certificate
+  # (cloudflare-origin-tls in ingress-nginx ns).
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

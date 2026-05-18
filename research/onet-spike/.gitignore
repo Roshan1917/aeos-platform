@@ -1,0 +1,21 @@
+# Spike-level ignores.
+
+# Credentials — never commit
+.env
+.env.*
+!.env.example
+credentials.*
+*.key
+
+# Python build/cache
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Local scratch
+scratch/
+tmp/

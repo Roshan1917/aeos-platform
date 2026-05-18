@@ -1,0 +1,75 @@
+// AEOS Process Discovery — Prisma schema.
+// Three tenant-scoped tables backing the discovery flow:
+//   discovery_connectors   — registered data sources (v1: document_only)
+//   discovery_runs         — a single discovery execution; can pause for input
+//   discovery_suggestions  — agent-generated process suggestions for review
+
+generator client {
+  provider = "prisma-client-js"
+  // Per-service output dir keeps each service's Prisma client isolated under
+  // pnpm hoisting. See test-generator/prisma/schema.prisma for the rationale.
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DiscoveryConnector {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  name          String
+  connectorType String   @default("document_only") @map("connector_type")
+  config        Json     @default("{}")
+  status        String   @default("inactive")
+  promptConfig  Json?    @map("prompt_config")
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  runs DiscoveryRun[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("discovery_connectors")
+}
+
+model DiscoveryRun {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  connectorId String    @map("connector_id")
+  status      String    @default("pending") // pending|running|completed|failed|waiting_for_input
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  error       String?
+  dataSummary Json?     @map("data_summary")
+  interaction Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  connector   DiscoveryConnector    @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  suggestions DiscoverySuggestion[]
+
+  @@index([tenantId, connectorId])
+  @@index([status])
+  @@map("discovery_runs")
+}
+
+model DiscoverySuggestion {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  runId         String   @map("run_id")
+  name          String
+  description   String?
+  proposedSteps Json     @default("[]") @map("proposed_steps")
+  status        String   @default("pending") // pending|approved|rejected|applied
+  processId     String?  @map("process_id") // populated on apply (canonical Process from substrate)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  run DiscoveryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, runId])
+  @@index([status])
+  @@map("discovery_suggestions")
+}

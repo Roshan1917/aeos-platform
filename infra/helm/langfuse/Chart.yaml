@@ -1,0 +1,29 @@
+apiVersion: v2
+name: aeos-langfuse
+description: >
+  AEOS Platform — LangFuse stack Helm chart. Wraps the upstream langfuse-k8s
+  chart (Langfuse v3: web + worker + ClickHouse + Postgres + Redis + MinIO)
+  and layers the ExternalSecret that pulls signing keys from AWS Secrets
+  Manager at aeos/{env}/platform/langfuse.
+  The public Ingress for the LangFuse UI lives in the aeos-observability
+  chart (templates/langfuse-ingress.yaml) — host is wired there per env.
+type: application
+version: 0.1.0
+appVersion: "3.x"
+keywords:
+  - aeos
+  - fuzebox
+  - observability
+  - langfuse
+  - tracing
+home: https://github.com/fuzebox/aeos-platform
+maintainers:
+  - name: Platform Team
+    email: platform-team@fuzebox.ai
+annotations:
+  "app.kubernetes.io/part-of": "aeos-platform"
+
+dependencies:
+  - name: langfuse
+    version: "1.*"
+    repository: https://langfuse.github.io/langfuse-k8s

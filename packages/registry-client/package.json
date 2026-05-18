@@ -1,0 +1,19 @@
+{
+  "name": "@aeos/registry-client",
+  "version": "0.1.0",
+  "description": "AEOS UoP, Process, and Agent registry clients",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/canonical-schema": "workspace:*"
+  },
+  "devDependencies": { "typescript": "*", "vitest": "*", "@types/node": "^20.0.0" },
+  "publishConfig": { "access": "restricted", "registry": "https://npm.pkg.github.com" }
+}

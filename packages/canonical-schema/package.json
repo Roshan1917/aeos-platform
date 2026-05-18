@@ -1,0 +1,36 @@
+{
+  "name": "@aeos/canonical-schema",
+  "version": "0.1.0",
+  "description": "AEOS canonical domain types — shared across all platform services",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./events": {
+      "import": "./dist/events/index.js",
+      "types": "./dist/events/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && pnpm build:python",
+    "build:python": "tsx scripts/generate-python.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "ts-json-schema-generator": "^2.3.0",
+    "tsx": "*",
+    "typescript": "*"
+  },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  }
+}

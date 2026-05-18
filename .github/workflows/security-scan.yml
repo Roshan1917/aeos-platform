@@ -1,0 +1,159 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'  # Weekly on Monday at 03:00 UTC
+
+permissions:
+  security-events: write
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  secret-scan:
+    name: Secret Scan (TruffleHog)
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog — scan for leaked secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  sast:
+    name: SAST (CodeQL)
+    runs-on: ubuntu-latest
+    # Advisory only. SARIF upload requires GitHub Advanced Security
+    # (Code Security feature) to be enabled on the repo; until that's done
+    # the upload step fails with "Code Security must be enabled". Step-level
+    # `continue-on-error` keeps the job green so PRs aren't blocked.
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        continue-on-error: true
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+        continue-on-error: true
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        continue-on-error: true
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@aeos'
+
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Node — pnpm audit (production deps only)
+        # Advisory. Currently 6 high CVEs in transitive `tar` via
+        # `services/substrate > bcrypt@5.1.1 > @mapbox/node-pre-gyp > tar`.
+        # Track that bump separately; fail PRs only on CRITICAL.
+        # Dev-only deps (vitest, happy-dom, etc.) are excluded via --prod.
+        run: pnpm audit --prod --audit-level=critical
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Python — install pip-audit
+        run: pip install pip-audit
+
+      - name: Python — audit packages in packages/*/src/python/
+        run: |
+          shopt -s globstar nullglob
+          audited=0
+          for req in packages/*/src/python/requirements*.txt; do
+            echo "Auditing $req"
+            pip-audit -r "$req"
+            audited=$((audited + 1))
+          done
+          if [ "$audited" -eq 0 ]; then
+            echo "No Python requirements files found under packages/*/src/python/ — skipping."
+          fi
+
+      - name: Python — audit services/_template-py/
+        run: |
+          # pip-audit only supports `-r requirements.txt` natively. The old
+          # `--project` flag was removed in pip-audit 2.x. Real services
+          # should commit a `requirements.txt` (or generate one from their
+          # lockfile) for this audit to apply.
+          if [ -f services/_template-py/requirements.txt ]; then
+            pip-audit -r services/_template-py/requirements.txt
+          else
+            echo "services/_template-py/requirements.txt not found — skipping (template uses pyproject.toml only)."
+          fi
+
+  container-scan:
+    name: Container Scan (Trivy)
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find Dockerfiles
+        id: find-dockerfiles
+        run: |
+          files=$(find . -name 'Dockerfile*' -not -path './.git/*' | tr '\n' ',')
+          echo "dockerfiles=$files" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy — scan Dockerfiles + Terraform for HIGH/CRITICAL misconfigs
+        # Advisory. exit-code: '0' until existing terraform misconfigs are
+        # triaged; findings still printed to the job log (table format).
+        # Bump exit-code to '1' once the baseline is clean.
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          format: table
+          # Skip Helm scanner: chart deps are not vendored in repo (downloaded
+          # by `helm dep update` in CI/CD) and template scaffolds use placeholder
+          # release names ("aeos-service-REPLACE_ME"). Helm rendering belongs in
+          # the Helm/ArgoCD pipeline, not the security scan.
+          skip-dirs: 'infra/helm,services/_template-py/helm,services/_template-ts/helm,templates/new-service-repo-py/helm,templates/new-service-repo-ts/helm'
+
+      # SARIF upload to GitHub Security tab requires GitHub Advanced Security
+      # to be enabled on the repo. Until then, findings are visible in the job
+      # log only. To re-enable: switch Trivy `format` back to `sarif` + `output`,
+      # restore the upload step, and flip Trivy `exit-code` to '1'.

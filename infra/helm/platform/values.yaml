@@ -1,0 +1,184 @@
+# Default values for aeos-platform umbrella chart.
+# Override per environment with values-non-prod.yaml or values-prod.yaml.
+
+# ---------------------------------------------------------------------------
+# Cloudflare edge configuration
+# ---------------------------------------------------------------------------
+# Cloudflare is the authoritative DNS + WAF + edge TLS terminator. Traffic
+# flows: client → Cloudflare (HTTPS, WAF, DDoS) → AWS NLB → ingress-nginx →
+# pods. ingress-nginx must trust Cloudflare's published IP ranges to set the
+# real client IP from `CF-Connecting-IP`. Update this list when Cloudflare
+# changes their ranges (https://www.cloudflare.com/ips/).
+#
+# NLB security group restriction to these same ranges is a follow-up
+# (requires AWS Load Balancer Controller — tracked as a non-blocking item).
+cloudflare:
+  # IPv4 + IPv6 CIDRs as a single newline-separated string for ingress-nginx.
+  ipRanges: |-
+    173.245.48.0/20
+    103.21.244.0/22
+    103.22.200.0/22
+    103.31.4.0/22
+    141.101.64.0/18
+    108.162.192.0/18
+    190.93.240.0/20
+    188.114.96.0/20
+    197.234.240.0/22
+    198.41.128.0/17
+    162.158.0.0/15
+    104.16.0.0/13
+    104.24.0.0/14
+    172.64.0.0/13
+    131.0.72.0/22
+    2400:cb00::/32
+    2606:4700::/32
+    2803:f800::/32
+    2405:b500::/32
+    2405:8100::/32
+    2a06:98c0::/29
+    2c0f:f248::/32
+  # AWS Secrets Manager paths — populated by Terraform, read via External Secrets.
+  secrets:
+    apiTokenSecretName: aeos/non-prod/platform/cloudflare-api-token
+    originCertSecretName: aeos/non-prod/platform/cloudflare-origin-cert
+
+# ---------------------------------------------------------------------------
+# ingress-nginx
+# ---------------------------------------------------------------------------
+ingress-nginx:
+  controller:
+    service:
+      type: LoadBalancer
+      annotations:
+        # AWS NLB for EKS
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    config:
+      # Real client IP from Cloudflare via CF-Connecting-IP / X-Forwarded-For.
+      use-forwarded-headers: "true"
+      compute-full-forwarded-for: "true"
+      enable-real-ip: "true"
+      forwarded-for-header: "CF-Connecting-IP"
+      use-proxy-protocol: "false"
+      # proxy-real-ip-cidr is set per-env (see values-non-prod.yaml /
+      # values-prod.yaml) using `.Values.cloudflare.ipRanges`.
+    replicaCount: 2
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# ---------------------------------------------------------------------------
+# cert-manager
+# ---------------------------------------------------------------------------
+# Kept installed for future use (e.g. internal mTLS). In non-prod the
+# Let's Encrypt issuers are disabled because Cloudflare Origin CA serves
+# all NLB-fronted TLS.
+cert-manager:
+  installCRDs: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ---------------------------------------------------------------------------
+# external-secrets
+# ---------------------------------------------------------------------------
+external-secrets:
+  installCRDs: true
+  replicaCount: 1
+  serviceAccount:
+    create: true
+    name: external-secrets
+    annotations:
+      # IRSA — overridden per-env. See values-non-prod.yaml / values-prod.yaml.
+      eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/aeos-external-secrets"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ---------------------------------------------------------------------------
+# external-dns (Cloudflare provider)
+# ---------------------------------------------------------------------------
+# Reads Ingress + Service host hints, manages DNS records in Cloudflare.
+# CF API token is sourced from AWS Secrets Manager via the
+# `cloudflare-api-token` ExternalSecret (see templates/cloudflare-secrets.yaml).
+external-dns:
+  provider: cloudflare
+  cloudflare:
+    proxied: true
+  policy: sync
+  registry: txt
+  txtOwnerId: aeos-non-prod
+  sources:
+    - service
+    - ingress
+  env:
+    - name: CF_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: cloudflare-api-token
+          key: api-token
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ---------------------------------------------------------------------------
+# ClusterIssuer (cert-manager) — Let's Encrypt
+# ---------------------------------------------------------------------------
+# Disabled in non-prod by default (Cloudflare Origin CA is used instead).
+# Keep available for environments that terminate TLS directly at the NLB.
+clusterIssuer:
+  email: platform-team@fuzebox.ai
+  staging:
+    enabled: false
+    name: letsencrypt-staging
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+  production:
+    enabled: false
+    name: letsencrypt-prod
+    server: https://acme-v02.api.letsencrypt.org/directory
+  ingressClass: nginx
+
+# ---------------------------------------------------------------------------
+# ClusterSecretStore (external-secrets) — AWS Secrets Manager
+# ---------------------------------------------------------------------------
+clusterSecretStore:
+  name: aeos-cluster-store
+  region: us-east-1
+  serviceAccountRef: external-secrets
+
+# ---------------------------------------------------------------------------
+# ArgoCD UI Ingress
+# ---------------------------------------------------------------------------
+# Exposes ArgoCD's argocd-server ClusterIP service via ingress-nginx.
+# Set host in per-env override; leave empty to skip the Ingress.
+argocdIngress:
+  host: ""
+  # When empty, TLS is served by the cluster default-ssl-certificate
+  # (Cloudflare Origin CA). When set, cert-manager via this issuer is used.
+  clusterIssuerName: ""
+
+# ---------------------------------------------------------------------------
+# AEOS Namespaces
+# ---------------------------------------------------------------------------
+namespaces:
+  - differentiated
+  - substrate
+  - platform
+  - observability

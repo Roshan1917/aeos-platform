@@ -1,0 +1,230 @@
+// AEOS Substrate — Prisma schema
+// Tables: tenants, users, sessions, agents, agent_contracts, uops, processes, rbac_audit
+
+generator client {
+  provider = "prisma-client-js"
+  // Per-service output dir keeps the client isolated from other services'
+  // Prisma clients. Without this, pnpm hoists `@prisma/client` to the
+  // workspace root and `pnpm prisma generate` from one service overwrites
+  // every other service's models in local dev.
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Tenants ───────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  deploymentMode  String    @default("pooled") // pooled | siloed | on-prem
+  status          String    @default("active")  // active | suspended | offboarded
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  settings        TenantSettings?
+  users           User[]
+  agents          Agent[]
+  agentContracts  AgentContract[]
+  uops            UoP[]
+  processes       Process[]
+
+  @@map("tenants")
+}
+
+model TenantSettings {
+  tenantId                    String   @id @map("tenant_id")
+  anonymizedBenchmarksConsent Boolean  @default(false) @map("anonymized_benchmarks_consent")
+  dataRetentionDays           Int      @default(90) @map("data_retention_days")
+  complianceFrameworks        String[] @map("compliance_frameworks") // JSON array of ComplianceFramework values
+  agentDeploymentPlatform     Json?    @map("agent_deployment_platform") // { kind, config_complete } | null
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_settings")
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  email        String
+  passwordHash String    @map("password_hash")
+  displayName  String?   @map("display_name")
+  roles        String[]  // e.g. ["admin", "analyst", "viewer"]
+  status       String    @default("active") // active | suspended | offboarded
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  tenantId     String   @map("tenant_id")
+  refreshToken String   @unique @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+// ── Agents (PATENT: Family 1) ─────────────────────────────────────────────────
+
+model Agent {
+  id               String   @id @default(cuid())
+  tenantId         String   @map("tenant_id")
+  name             String
+  description      String   @default("")
+  vendorRuntime    String   @map("vendor_runtime")
+  modelProvider    String   @map("model_provider")
+  modelId          String   @map("model_id")
+  framework        String?
+  adapterSdkVersion String? @map("adapter_sdk_version")
+  status           String   @default("active") // active | deprecated | suspended
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentContracts AgentContract[]
+
+  @@index([tenantId])
+  @@map("agents")
+}
+
+// ── Agent Step Specs ──────────────────────────────────────────────────────────
+// Per-process-step definition of an agent to be deployed externally.
+// Created during Process Discovery; exported as JSON for the customer's harness
+// (Agentforce, Bedrock, etc). The harness instantiates the agent which then
+// emits telemetry; the Agent entity is registered through that telemetry path.
+
+model AgentStepSpec {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  processId          String   @map("process_id")
+  stepId             String   @map("step_id")
+  name               String
+  description        String   @default("")
+  vendorRuntime      String   @map("vendor_runtime")
+  modelProvider      String   @map("model_provider")
+  modelId            String   @map("model_id")
+  framework          String?
+  systemPrompt       String   @map("system_prompt")
+  userPromptTemplate String?  @map("user_prompt_template")
+  temperature        Float?
+  maxTokens          Int?     @map("max_tokens")
+  tools              Json?    // AgentToolSpec[]
+  inputSchema        Json?    @map("input_schema")
+  outputSchema       Json?    @map("output_schema")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@unique([processId, stepId])
+  @@index([tenantId])
+  @@map("agent_step_specs")
+}
+
+// ── Agent Contracts (PATENT: Family 1) ────────────────────────────────────────
+
+model AgentContract {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  agentId         String    @map("agent_id")
+  uopId           String    @map("uop_id")
+  targetValue     Float     @map("target_value")
+  targetCurrency  String?   @map("target_currency")
+  scoringWeights  Json      @map("scoring_weights") // UefWeights object
+  effectiveFrom   DateTime  @map("effective_from")
+  effectiveUntil  DateTime? @map("effective_until")
+  status          String    @default("active") // active | superseded | terminated
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent  Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([agentId])
+  @@map("agent_contracts")
+}
+
+// ── UoPs (PATENT: Family 1) ───────────────────────────────────────────────────
+
+model UoP {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  name            String
+  description     String   @default("")
+  category        String   // UoPCategory enum value
+  systemOfRecord  String   @map("system_of_record")
+  sorObjectType   String   @map("sor_object_type")
+  sorMetricField  String   @map("sor_metric_field")
+  baselineValue   Float    @map("baseline_value")
+  baselineCurrency String? @map("baseline_currency")
+  ownerTeam       String   @map("owner_team")
+  status          String   @default("active") // active | deprecated
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("uops")
+}
+
+// ── Processes ─────────────────────────────────────────────────────────────────
+
+model Process {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  uopId       String   @map("uop_id")
+  name        String
+  description String   @default("")
+  steps       Json     // ProcessStep[] JSON array
+  status      String   @default("active") // active | deprecated
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentStepSpecs AgentStepSpec[]
+
+  @@index([tenantId])
+  @@map("processes")
+}
+
+// ── RBAC audit log ────────────────────────────────────────────────────────────
+// Stores a local record of OpenFGA tuple writes for auditing.
+// The source of truth for RBAC decisions is OpenFGA.
+
+model RbacAuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  actorId    String   @map("actor_id")
+  operation  String   // write | delete
+  user       String   // OpenFGA user (e.g. "user:usr_xxx")
+  relation   String
+  object     String   // OpenFGA object (e.g. "tenant:ten_xxx")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([object])
+  @@map("rbac_audit_log")
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@aeos/telemetry-sdk",
+  "version": "0.1.0",
+  "description": "AEOS OTEL tracer wrapper with canonical span attributes",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.8.0",
+    "@opentelemetry/sdk-node": "^0.51.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.51.0",
+    "@opentelemetry/resources": "^1.23.0",
+    "@opentelemetry/semantic-conventions": "^1.23.0"
+  },
+  "devDependencies": { "typescript": "*" },
+  "publishConfig": { "access": "restricted", "registry": "https://npm.pkg.github.com" }
+}

@@ -1,0 +1,159 @@
+name: CI — Service Template (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        required: true
+        type: string
+      language:
+        required: true
+        type: string  # 'typescript' | 'python'
+      node-version:
+        required: false
+        type: string
+        default: '20'
+      python-version:
+        required: false
+        type: string
+        default: '3.11'
+    secrets:
+      AEOS_NPM_TOKEN:
+        required: false
+      AEOS_PYPI_TOKEN:
+        required: false
+      AWS_ACCOUNT_ID:
+        required: true
+      AWS_REGION:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+  packages: read
+
+jobs:
+  lint-typecheck:
+    if: inputs.language == 'typescript'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@aeos'
+
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.AEOS_NPM_TOKEN }}
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  lint-typecheck-py:
+    if: inputs.language == 'python'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - run: pip install -e ".[dev]" --extra-index-url "https://__token__:${{ secrets.AEOS_PYPI_TOKEN }}@AEOS_PYPI_URL/simple/"
+      - run: ruff check src/
+      - run: mypy src/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup (TypeScript)
+        if: inputs.language == 'typescript'
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        if: inputs.language == 'typescript'
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@aeos'
+
+      - run: pnpm install --frozen-lockfile
+        if: inputs.language == 'typescript'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.AEOS_NPM_TOKEN }}
+
+      - run: pnpm test
+        if: inputs.language == 'typescript'
+
+      - uses: actions/setup-python@v5
+        if: inputs.language == 'python'
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - run: pip install -e ".[dev]" --extra-index-url "https://__token__:${{ secrets.AEOS_PYPI_TOKEN }}@AEOS_PYPI_URL/simple/"
+        if: inputs.language == 'python'
+
+      - run: pytest tests/unit/
+        if: inputs.language == 'python'
+
+  build-push:
+    needs: [test]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/aeos-github-actions-ecr
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/aeos-${{ inputs.service-name }}
+          tags: |
+            type=sha,prefix=git-
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            AEOS_NPM_TOKEN=${{ secrets.AEOS_NPM_TOKEN }}
+            AEOS_PYPI_TOKEN=${{ secrets.AEOS_PYPI_TOKEN }}
+
+  helm-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: '3.14.0'
+
+      - name: Helm lint
+        run: helm lint helm/
+
+      - name: Helm template validate
+        run: helm template my-release helm/ --dry-run

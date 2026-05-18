@@ -1,0 +1,22 @@
+{
+  "name": "@aeos/sdk-adapter-bedrock",
+  "version": "0.1.0",
+  "description": "AEOS Agent Adapter — AWS Bedrock reference implementation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aeos/adapter-sdk": "workspace:*",
+    "@aws-sdk/client-bedrock-runtime": "^3.590.0"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

@@ -1,0 +1,59 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.local
+.env.*.local
+.turbo/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# Prisma — generated clients are per-service (output = "./generated" in
+# each schema.prisma). Run `pnpm prisma generate` after install.
+services/*/prisma/generated/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Helm — auto-downloaded chart dependencies (Chart.lock IS tracked)
+**/charts/*.tgz
+
+# Local secrets
+.env
+local-dev/.env.services
+local-dev/.telemetry-token.env
+
+# Claude Code — keep shared settings.json, ignore user-local + worktrees
+.claude/settings.local.json
+.claude/worktrees/
+infra/helm/platform/Chart.lock
+.claude/scheduled_tasks.lock
+
+# serve-docs.sh runtime state (logs + pids)
+.docs-run/
+
+# Terraform plan artifacts
+*.tfplan
+
+# Stray nested copy of the project (unzip artifact)
+/aeos-platform-main/

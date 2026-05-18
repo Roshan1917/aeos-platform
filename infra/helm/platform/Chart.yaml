@@ -1,0 +1,39 @@
+apiVersion: v2
+name: aeos-platform
+description: >
+  AEOS Platform — umbrella Helm chart for cluster-level infrastructure dependencies.
+  Installs ingress-nginx, cert-manager, and external-secrets, then provisions
+  AEOS namespaces, ClusterIssuer (Let's Encrypt), and ClusterSecretStore (AWS Secrets Manager).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aeos
+  - fuzebox
+  - platform
+  - ingress
+  - cert-manager
+  - external-secrets
+home: https://github.com/fuzebox/aeos-platform
+maintainers:
+  - name: Platform Team
+    email: platform-team@fuzebox.ai
+annotations:
+  "app.kubernetes.io/part-of": "aeos-platform"
+
+dependencies:
+  - name: ingress-nginx
+    version: "4.10.*"
+    repository: https://kubernetes.github.io/ingress-nginx
+
+  - name: cert-manager
+    version: "1.14.*"
+    repository: https://charts.jetstack.io
+
+  - name: external-secrets
+    version: "0.9.*"
+    repository: https://charts.external-secrets.io
+
+  - name: external-dns
+    version: "1.14.*"
+    repository: https://kubernetes-sigs.github.io/external-dns/

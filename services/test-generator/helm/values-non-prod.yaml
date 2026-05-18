@@ -1,0 +1,38 @@
+# Non-prod overrides for the test-generator Helm chart.
+# Applied by ArgoCD on top of values.yaml.
+
+replicaCount: 1
+image:
+  repository: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-test-generator
+  tag: "491fe25"
+externalSecrets:
+  refreshInterval: 5m
+  secrets:
+    - name: test-generator-secrets
+      remoteRef:
+        key: aeos/non-prod/test-generator
+env:
+  SERVICE_NAME: aeos-test-generator
+  PLATFORM_ENV: non-prod
+  AUTH_SERVICE_URL: http://aeos-substrate.substrate.svc.cluster.local:3002
+  TELEMETRY_URL: http://aeos-telemetry.differentiated.svc.cluster.local:3003
+  ANTHROPIC_MODEL: claude-sonnet-4-6
+ingress:
+  enabled: true
+  host: staging.aeos.fuzebox.ai
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 384Mi
+# Override the migrate init container to use the same ECR image as the main
+# container. CI bump-values pins the tag to the build SHA on every release.
+initContainers:
+  - name: migrate
+    image: 647379406699.dkr.ecr.us-east-1.amazonaws.com/aeos-service-test-generator:491fe25
+    command: ["npx", "prisma", "migrate", "deploy"]
+    envFrom:
+      - secretRef:
+          name: test-generator-secrets
