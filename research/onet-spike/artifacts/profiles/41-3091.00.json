@@ -1,0 +1,173 @@
+{
+  "soc": "41-3091.00",
+  "title": "Sales Representatives of Services, Except Advertising, Insurance, Financial Services, and Travel",
+  "description": "Sell services to individuals or businesses. May describe options or resolve client problems.",
+  "source": "excel",
+  "profiles": [
+    {
+      "task_id": 23222,
+      "description": "Answer customers' questions about services, prices, availability, or credit terms.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 10,
+      "ai_minutes": 5,
+      "rationale": "AI can draft and retrieve answers to \u201ccustomers\u2019 questions about services, prices, availability, or credit terms,\u201d but a rep typically handles live nuances and exceptions, and ICMI contact-center benchmarks put average customer inquiry interactions around 6\u201310 minutes."
+    },
+    {
+      "task_id": 23223,
+      "description": "Attend sales or trade meetings or read related publications to obtain information about market conditions, business trends, regulations, or industry developments.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "assist",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 30,
+      "rationale": "AI can summarize \u201csales or trade meetings\u201d content and \u201crelated publications,\u201d but humans still attend and interpret implications, and Salesforce State of Sales/Gartner benchmarks suggest roughly an hour a week on market learning and enablement."
+    },
+    {
+      "task_id": 23224,
+      "description": "Compute and compare costs of services.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "auto",
+      "driver": "per_open_req",
+      "human_minutes": 20,
+      "ai_minutes": 2,
+      "rationale": "Config/price tools let an agent automatically \u201ccompute and compare costs of services,\u201d and Salesforce CPQ/operations benchmarks indicate manual pricing comps typically take ~15\u201330 minutes without automation."
+    },
+    {
+      "task_id": 23225,
+      "description": "Consult with clients after sales or contract signings to resolve problems and provide ongoing support.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "human_only",
+      "driver": "per_phone_screen",
+      "human_minutes": 20,
+      "ai_minutes": 20,
+      "rationale": "\u201cConsult with clients after sales\u2026 to resolve problems and provide ongoing support\u201d requires sensitive judgment and relationship management best handled by a person, and Gartner/ICMI data show complex B2B support conversations often run 15\u201320 minutes."
+    },
+    {
+      "task_id": 23226,
+      "description": "Contact prospective or existing customers to discuss how services can meet their needs.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "human_only",
+      "driver": "per_phone_screen",
+      "human_minutes": 12,
+      "ai_minutes": 12,
+      "rationale": "\u201cContact prospective or existing customers to discuss how services can meet their needs\u201d is a persuasive, rapport\u2011building conversation requiring human judgment, with Gartner inside\u2011sales talk time benchmarks around 10\u201315 minutes per connect."
+    },
+    {
+      "task_id": 23227,
+      "description": "Create forms or agreements to complete sales.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "auto",
+      "driver": "per_hire",
+      "human_minutes": 30,
+      "ai_minutes": 2,
+      "rationale": "Standardized templates let AI \u201ccreate forms or agreements to complete sales\u201d end\u2011to\u2011end in CLM/CPQ workflows, whereas SiriusDecisions/Forrester sales\u2011ops benchmarks show assembling deal paperwork manually often takes ~20\u201345 minutes."
+    },
+    {
+      "task_id": 23228,
+      "description": "Develop sales presentations or proposals to explain service specifications.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 90,
+      "ai_minutes": 45,
+      "rationale": "AI can draft \u201csales presentations or proposals to explain service specifications,\u201d but reps refine messaging and approvals, and Gartner/Salesforce benchmarks indicate building tailored proposals typically takes 1\u20132 hours."
+    },
+    {
+      "task_id": 23229,
+      "description": "Distribute promotional materials at meetings, conferences, or trade shows.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "human_only",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 60,
+      "rationale": "\u201cDistribute promotional materials at meetings, conferences, or trade shows\u201d requires physical presence and interpersonal interaction, and BLS ATUS/Salesforce State of Sales suggest about an hour per week on event/outreach activities when averaged over time."
+    },
+    {
+      "task_id": 23230,
+      "description": "Emphasize or recommend service features based on knowledge of customers' needs and vendor capabilities and limitations.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "AI can suggest options to \u201cemphasize or recommend service features based on\u2026 customers\u2019 needs and vendor capabilities,\u201d but a seller tailors and delivers the message, with Gartner pre\u2011call planning/solutioning often ~30 minutes per opportunity."
+    },
+    {
+      "task_id": 23231,
+      "description": "Identify prospective customers using business directories, leads from clients, or information from conferences or trade shows.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 8,
+      "ai_minutes": 1,
+      "rationale": "An agent can automatically \u201cidentify prospective customers using business directories\u2026 or information from conferences,\u201d and TOPO/SiriusDecisions SDR research benchmarks show manual lead research/enrichment takes ~6\u201310 minutes per lead."
+    },
+    {
+      "task_id": 23232,
+      "description": "Inform customers of contracts or other information pertaining to purchased services.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "auto",
+      "driver": "per_hire",
+      "human_minutes": 10,
+      "ai_minutes": 2,
+      "rationale": "Automations can \u201cinform customers of contracts or other information pertaining to purchased services\u201d via templated emails/portals, and Salesforce admin productivity data place such follow\u2011ups at ~5\u201310 minutes when done manually."
+    },
+    {
+      "task_id": 23233,
+      "description": "Maintain customer records using automated systems.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 4,
+      "ai_minutes": 1,
+      "rationale": "Systems can auto\u2011update to \u201cmaintain customer records using automated systems,\u201d and Salesforce State of Sales indicates individual CRM updates take ~3\u20135 minutes each when done by hand."
+    },
+    {
+      "task_id": 23234,
+      "description": "Monitor market conditions, innovations, and competitors' services, prices, and sales.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "assist",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 30,
+      "rationale": "AI can track and summarize feeds to \u201cmonitor market conditions, innovations, and competitors\u2019 services, prices, and sales,\u201d while humans interpret and act, with Gartner competitive\u2011intelligence routines often budgeting ~1 hour weekly."
+    },
+    {
+      "task_id": 23235,
+      "description": "Negotiate prices or terms of sales or service agreements.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "human_only",
+      "driver": "per_open_req",
+      "human_minutes": 45,
+      "ai_minutes": 45,
+      "rationale": "\u201cNegotiate prices or terms of sales or service agreements\u201d entails legal/commercial risk and final authority that must remain human, and Gartner/SiriusDecisions benchmarks show negotiation meetings/discussions often last 30\u201360 minutes."
+    },
+    {
+      "task_id": 23236,
+      "description": "Quote prices, credit terms, contract terms, or fulfillment dates for services.",
+      "importance": null,
+      "task_type": "nan",
+      "ai_capability": "auto",
+      "driver": "per_open_req",
+      "human_minutes": 15,
+      "ai_minutes": 2,
+      "rationale": "CPQ and availability tools allow automated \u201cquote prices, credit terms, contract terms, or fulfillment dates for services,\u201d and sales\u2011ops benchmarks put manual quoting at ~10\u201320 minutes per quote."
+    }
+  ]
+}

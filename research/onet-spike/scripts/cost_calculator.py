@@ -28,7 +28,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from onet_data import MEDIAN_HOURLY_WAGE_USD, active_source  # noqa: E402
 
 SPIKE_ROOT = Path(__file__).resolve().parent.parent
-PROFILES_PATH = SPIKE_ROOT / "artifacts" / "task-profiles.json"
+PROFILES_DIR = SPIKE_ROOT / "artifacts" / "profiles"
+LEGACY_PROFILES_PATH = SPIKE_ROOT / "artifacts" / "task-profiles.json"  # back-compat
+
+DEFAULT_SOC = "13-1071.00"  # the original demo target
 
 WEEKS_PER_MONTH = 4.33  # 52 / 12
 
@@ -40,6 +43,7 @@ class CalculatorInputs:
     hires_per_month: int = 5
     open_reqs: int = 15
     wage_hourly_usd: float = MEDIAN_HOURLY_WAGE_USD
+    soc: str = DEFAULT_SOC
 
 
 @dataclass
@@ -51,6 +55,8 @@ class TaskBreakdown:
     ai_capability: str  # auto | assist | human_only
     driver: str
     rationale: str
+    human_minutes: float  # minutes a person spends per unit of the driver
+    ai_minutes: float     # minutes still spent if AI helps, per unit
     units_per_week: float
     human_hours_per_week: float
     ai_hours_per_week: float
@@ -108,17 +114,35 @@ def _units_per_week(driver: str, inputs: CalculatorInputs) -> float:
     raise ValueError(f"Unknown driver: {driver!r}")
 
 
-def _load_profiles() -> list[dict]:
-    if not PROFILES_PATH.exists():
-        raise FileNotFoundError(
-            f"{PROFILES_PATH} not found. Run "
-            f"`python scripts/classify_tasks.py` first to generate it."
+class ProfilesMissing(FileNotFoundError):
+    """Raised when the per-SOC profile JSON does not yet exist."""
+
+    def __init__(self, soc: str, expected_path: Path):
+        self.soc = soc
+        self.expected_path = expected_path
+        super().__init__(
+            f"No AI estimates yet for SOC {soc}. Expected at {expected_path}. "
+            f"Run: python scripts/classify_tasks.py {soc}"
         )
-    return json.loads(PROFILES_PATH.read_text())["profiles"]
+
+
+def has_profiles(soc: str) -> bool:
+    return (PROFILES_DIR / f"{soc}.json").exists()
+
+
+def _load_profiles(soc: str) -> list[dict]:
+    path = PROFILES_DIR / f"{soc}.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        return data.get("profiles", [])
+    # Backward-compat: original task-profiles.json (treated as 13-1071.00).
+    if soc == DEFAULT_SOC and LEGACY_PROFILES_PATH.exists():
+        return json.loads(LEGACY_PROFILES_PATH.read_text())["profiles"]
+    raise ProfilesMissing(soc, path)
 
 
 def calculate(inputs: CalculatorInputs) -> CalculatorResult:
-    profiles = _load_profiles()
+    profiles = _load_profiles(inputs.soc)
     wage = float(inputs.wage_hourly_usd)
 
     per_task: list[TaskBreakdown] = []
@@ -144,6 +168,8 @@ def calculate(inputs: CalculatorInputs) -> CalculatorResult:
                 ai_capability=p["ai_capability"],
                 driver=driver,
                 rationale=p.get("rationale", ""),
+                human_minutes=float(human_min),
+                ai_minutes=float(ai_min),
                 units_per_week=round(units, 2),
                 human_hours_per_week=round(human_hrs, 3),
                 ai_hours_per_week=round(ai_hrs, 3),
@@ -197,11 +223,13 @@ def calculate(inputs: CalculatorInputs) -> CalculatorResult:
 
 
 if __name__ == "__main__":
+    soc = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SOC
     inputs = CalculatorInputs(
         applications_per_week=200,
         phone_screens_per_week=50,
         hires_per_month=5,
         open_reqs=15,
+        soc=soc,
     )
     r = calculate(inputs)
     print(f"O*NET data source: {r.source.upper()}")

@@ -1,0 +1,195 @@
+{
+  "soc": "11-2022.00",
+  "title": "Sales Managers",
+  "description": "Plan, direct, or coordinate the actual distribution or movement of a product or service to the customer. Coordinate sales distribution by establishing sales territories, quotas, and goals and establish training programs for sales representatives. Analyze sales statistics gathered by staff to determine sales potential and inventory requirements and monitor the preferences of customers.",
+  "source": "excel",
+  "profiles": [
+    {
+      "task_id": 14,
+      "description": "Oversee regional and local sales managers and their staffs.",
+      "importance": 4.65,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_week",
+      "human_minutes": 240,
+      "ai_minutes": 240,
+      "rationale": "This requires human leadership judgment to \u201coversee \u2026 sales managers and their staffs,\u201d and Gartner/SiriusDecisions studies show front\u2011line sales managers spend several hours weekly on coaching/supervision (~4 hours)."
+    },
+    {
+      "task_id": 1,
+      "description": "Resolve customer complaints regarding sales and service.",
+      "importance": 4.35,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_application",
+      "human_minutes": 30,
+      "ai_minutes": 30,
+      "rationale": "Escalations to \u201cresolve customer complaints regarding sales and service\u201d involve sensitive, liability\u2011bearing conversations, and ICMI contact center benchmarks place escalated case handling around 20\u201330 minutes per case."
+    },
+    {
+      "task_id": 2,
+      "description": "Monitor customer preferences to determine focus of sales efforts.",
+      "importance": 4.29,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_week",
+      "human_minutes": 60,
+      "ai_minutes": 2,
+      "rationale": "An AI agent can automatically \u201cmonitor customer preferences\u201d and surface insights, and Gartner marketing analytics benchmarks indicate managers typically spend ~1 hour weekly on such reviews without automation."
+    },
+    {
+      "task_id": 13,
+      "description": "Confer with potential customers regarding equipment needs, and advise customers on types of equipment to purchase.",
+      "importance": 4.24,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 90,
+      "ai_minutes": 45,
+      "rationale": "Because the manager must \u201cconfer with potential customers \u2026 and advise,\u201d AI can prep discovery questions and proposals but a human leads the consult, and Gartner sales-cycle data suggest ~60\u201390 minutes including prep and follow\u2011up per client consult."
+    },
+    {
+      "task_id": 5,
+      "description": "Review operational records and reports to project sales and determine profitability.",
+      "importance": 4.21,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_week",
+      "human_minutes": 120,
+      "ai_minutes": 2,
+      "rationale": "Standardized analytics can auto \u201creview operational records and reports to project sales and determine profitability,\u201d and Gartner/SiriusDecisions indicate managers otherwise spend ~2 hours weekly on reporting/forecast reviews."
+    },
+    {
+      "task_id": 11,
+      "description": "Plan and direct staffing, training, and performance evaluations to develop and control sales and service programs.",
+      "importance": 4.19,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_hire",
+      "human_minutes": 180,
+      "ai_minutes": 180,
+      "rationale": "This includes \u201cstaffing \u2026 and performance evaluations,\u201d which require managerial authority and HR judgment, and SHRM benchmarks show line managers typically invest 2\u20134 hours per hire for staffing decisions/training plans."
+    },
+    {
+      "task_id": 3,
+      "description": "Direct and coordinate activities involving sales of manufactured products, services, commodities, real estate, or other subjects of sale.",
+      "importance": 4.0,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 90,
+      "ai_minutes": 45,
+      "rationale": "AI can coordinate schedules, trackers, and status for \u201cdirect and coordinate activities involving sales,\u201d but humans still decide tradeoffs, and Gartner research shows ~1\u20132 hours of coordination per active territory/program."
+    },
+    {
+      "task_id": 4,
+      "description": "Determine price schedules and discount rates.",
+      "importance": 3.95,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 180,
+      "ai_minutes": 90,
+      "rationale": "Setting \u201cprice schedules and discount rates\u201d is judgmental, so AI can model scenarios while a human approves, and Gartner B2B pricing studies indicate a few hours of work per pricing update."
+    },
+    {
+      "task_id": 9,
+      "description": "Prepare budgets and approve budget expenditures.",
+      "importance": 3.7,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_open_req",
+      "human_minutes": 240,
+      "ai_minutes": 240,
+      "rationale": "The task includes \u201capprove budget expenditures,\u201d which is a fiduciary decision requiring human sign\u2011off, and Gartner budgeting benchmarks show department managers spend ~3\u20136 hours per budget cycle per cost center."
+    },
+    {
+      "task_id": 7,
+      "description": "Confer or consult with department heads to plan advertising services and to secure information on equipment and customer specifications.",
+      "importance": 3.53,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 60,
+      "ai_minutes": 30,
+      "rationale": "This is a direct meeting to \u201cconfer or consult with department heads,\u201d where AI can prepare agendas and notes but a human conducts the consult, and Gartner cross\u2011functional meeting norms are ~60 minutes."
+    },
+    {
+      "task_id": 12,
+      "description": "Visit franchised dealers to stimulate interest in establishment or expansion of leasing programs.",
+      "importance": 3.5,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_phone_screen",
+      "human_minutes": 120,
+      "ai_minutes": 120,
+      "rationale": "To \u201cvisit franchised dealers\u201d requires physical presence and persuasive interaction, and Gartner field\u2011sales studies show onsite calls typically take ~1.5\u20132 hours including logistics."
+    },
+    {
+      "task_id": 10,
+      "description": "Represent company at trade association meetings to promote products.",
+      "importance": 3.33,
+      "task_type": "Core",
+      "ai_capability": "human_only",
+      "driver": "per_phone_screen",
+      "human_minutes": 90,
+      "ai_minutes": 90,
+      "rationale": "\u201cRepresent company at trade association meetings\u201d involves in\u2011person networking and reputational responsibility unsuitable for automation, and Gartner event-marketing norms put sessions/networking at ~1\u20132 hours."
+    },
+    {
+      "task_id": 8,
+      "description": "Advise dealers and distributors on policies and operating procedures to ensure functional effectiveness of business.",
+      "importance": 3.25,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 45,
+      "ai_minutes": 20,
+      "rationale": "While AI can draft policy summaries and talking points, a human must \u201cadvise dealers and distributors,\u201d and Gartner channel\u2011partner management benchmarks show 30\u201360 minute advisory calls."
+    },
+    {
+      "task_id": 17,
+      "description": "Assess marketing potential of new and existing store locations, considering statistics and expenditures.",
+      "importance": 3.23,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 180,
+      "ai_minutes": 90,
+      "rationale": "AI can analyze data to \u201cassess marketing potential \u2026 considering statistics and expenditures,\u201d but a human validates site decisions, and Gartner retail/site\u2011selection workflows typically take a few hours per location."
+    },
+    {
+      "task_id": 6,
+      "description": "Direct, coordinate, and review sales and service accounting and record-keeping, as well as receiving and shipping.",
+      "importance": 3.06,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_week",
+      "human_minutes": 120,
+      "ai_minutes": 2,
+      "rationale": "Workflow automations can execute and summarize \u201cdirect, coordinate, and review \u2026 accounting and record\u2011keeping \u2026 receiving and shipping,\u201d and Gartner sales\u2011ops management indicates ~1\u20132 hours weekly is otherwise spent on these checks."
+    },
+    {
+      "task_id": 15,
+      "description": "Direct clerical staff to keep records of export correspondence, bid requests, and credit collections, and to maintain current information on tariffs, licenses, and restrictions.",
+      "importance": 3.0,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 5,
+      "ai_minutes": 1,
+      "rationale": "An AI ops agent can fully route and log \u201crecords of export correspondence, bid requests \u2026 tariffs, licenses, and restrictions,\u201d and Forrester operations benchmarks show manual routing/entry typically takes ~5 minutes per item."
+    },
+    {
+      "task_id": 16,
+      "description": "Direct foreign sales and service outlets of an organization.",
+      "importance": 2.92,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_open_req",
+      "human_minutes": 120,
+      "ai_minutes": 60,
+      "rationale": "For \u201cdirect[ing] foreign sales and service outlets,\u201d AI can consolidate metrics and draft directives, while humans make strategic calls, and Gartner global sales management cadences often require 1\u20132 hours per outlet."
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "soc": "15-1252.00",
+  "hourly": 63.98,
+  "annual": 133080,
+  "year": "2024",
+  "source": "O*NET Online (which republishes BLS OES median wages)",
+  "source_url": "https://www.onetonline.org/link/summary/15-1252.00",
+  "fetched_at": "2026-05-19T08:20:10.175715+00:00"
+}

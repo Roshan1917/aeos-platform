@@ -1,0 +1,151 @@
+{
+  "soc": "43-4051.00",
+  "title": "Customer Service Representatives",
+  "description": "Interact with customers to provide basic or scripted information in response to routine inquiries about products and services. May handle and resolve general complaints. Excludes individuals whose duties are primarily installation, sales, repair, and technical support.",
+  "source": "excel",
+  "profiles": [
+    {
+      "task_id": 18565,
+      "description": "Confer with customers by telephone or in person to provide information about products or services, take or enter orders, cancel accounts, or obtain details of complaints.",
+      "importance": 4.67,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 8,
+      "ai_minutes": 4,
+      "rationale": "Because the task is to \"confer with customers by telephone or in person\" to \"provide information... take or enter orders,\" AI can script and suggest responses but a human should lead the live interaction; ICMI contact center benchmarks put typical service-call AHT around 6\u20138 minutes."
+    },
+    {
+      "task_id": 2578,
+      "description": "Keep records of customer interactions or transactions, recording details of inquiries, complaints, or comments, as well as actions taken.",
+      "importance": 4.53,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 3,
+      "ai_minutes": 1,
+      "rationale": "This is standardized documentation\u2014\"keep records of customer interactions or transactions\"\u2014which an AI agent can auto-log from transcripts; ICMI reports after-call work typically adds ~1\u20132 minutes, with manual logging often ~2\u20133 minutes."
+    },
+    {
+      "task_id": 2580,
+      "description": "Check to ensure that appropriate changes were made to resolve customers' problems.",
+      "importance": 4.39,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_open_req",
+      "human_minutes": 4,
+      "ai_minutes": 1,
+      "rationale": "Verifying outcomes\u2014\"check to ensure that appropriate changes were made\"\u2014is a rules-based system lookup well-suited to automation; ICMI time\u2011motion data for back\u2011office verification tasks suggests ~3\u20135 minutes per case."
+    },
+    {
+      "task_id": 2581,
+      "description": "Contact customers to respond to inquiries or to notify them of claim investigation results or any planned adjustments.",
+      "importance": 4.22,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 6,
+      "ai_minutes": 3,
+      "rationale": "The task to \"contact customers to respond to inquiries\" or \"notify them\" involves live outreach where AI can draft scripts/messages but a human should handle the conversation; ICMI benchmarks show outbound service calls average ~5\u20137 minutes."
+    },
+    {
+      "task_id": 2579,
+      "description": "Resolve customers' service or billing complaints by performing activities such as exchanging merchandise, refunding money, or adjusting bills.",
+      "importance": 4.19,
+      "task_type": "Supplemental",
+      "ai_capability": "human_only",
+      "driver": "per_hire",
+      "human_minutes": 12,
+      "ai_minutes": 12,
+      "rationale": "Deciding to \"resolve... complaints\" by \"refunding money\" or \"adjusting bills\" entails discretionary, policy-bound authority a human must exercise; ICMI data indicates complex complaint resolution AHT commonly runs ~10\u201315 minutes."
+    },
+    {
+      "task_id": 2583,
+      "description": "Determine charges for services requested, collect deposits or payments, or arrange for billing.",
+      "importance": 4.18,
+      "task_type": "Core",
+      "ai_capability": "assist",
+      "driver": "per_application",
+      "human_minutes": 5,
+      "ai_minutes": 2.5,
+      "rationale": "To \"determine charges... collect deposits or payments, or arrange for billing\" AI can compute and draft payment steps, but a human should confirm compliance and amounts; ICMI shows billing/payment interactions typically take ~4\u20136 minutes."
+    },
+    {
+      "task_id": 2584,
+      "description": "Complete contract forms, prepare change of address records, or issue service discontinuance orders, using computers.",
+      "importance": 4.1,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 4,
+      "ai_minutes": 1,
+      "rationale": "Completing standardized artifacts\u2014\"complete contract forms, prepare change of address records, or issue service discontinuance orders\"\u2014is highly automatable; ICMI back\u2011office entry tasks are commonly ~3\u20135 minutes each."
+    },
+    {
+      "task_id": 2582,
+      "description": "Refer unresolved customer grievances to designated departments for further investigation.",
+      "importance": 4.07,
+      "task_type": "Core",
+      "ai_capability": "auto",
+      "driver": "per_application",
+      "human_minutes": 4,
+      "ai_minutes": 1,
+      "rationale": "Routing\u2014\"refer unresolved customer grievances to designated departments\"\u2014follows known rules/queues that an AI can apply automatically; ICMI escalation workflow studies show ~3\u20135 minutes when done manually."
+    },
+    {
+      "task_id": 2587,
+      "description": "Review insurance policy terms to determine whether a particular loss is covered by insurance.",
+      "importance": 4.05,
+      "task_type": "Supplemental",
+      "ai_capability": "human_only",
+      "driver": "per_application",
+      "human_minutes": 15,
+      "ai_minutes": 15,
+      "rationale": "\"Review insurance policy terms\" to judge whether a loss is covered is a contractual/compliance determination requiring human judgment; ICMI/Forrester note complex coverage inquiries often run ~12\u201318 minutes."
+    },
+    {
+      "task_id": 2586,
+      "description": "Solicit sales of new or additional services or products.",
+      "importance": 3.87,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_phone_screen",
+      "human_minutes": 3,
+      "ai_minutes": 1.5,
+      "rationale": "When \"solicit[ing] sales of new or additional services\" during a call, AI can suggest offers and talking points but a human should deliver and confirm consent; ICMI finds upsell attempts typically add ~2\u20133 minutes to handle time."
+    },
+    {
+      "task_id": 2589,
+      "description": "Compare disputed merchandise with original requisitions and information from invoices and prepare invoices for returned goods.",
+      "importance": 3.64,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_application",
+      "human_minutes": 7,
+      "ai_minutes": 3.5,
+      "rationale": "To \"compare disputed merchandise\" with requisitions/invoices and \"prepare invoices for returned goods,\" AI can pre\u2011match documents and draft the return, while a human resolves discrepancies; Forrester retail contact center back\u2011office tasks often take ~6\u20138 minutes."
+    },
+    {
+      "task_id": 2585,
+      "description": "Obtain and examine all relevant information to assess validity of complaints and to determine possible causes, such as extreme weather conditions that could increase utility bills.",
+      "importance": 3.63,
+      "task_type": "Supplemental",
+      "ai_capability": "human_only",
+      "driver": "per_application",
+      "human_minutes": 10,
+      "ai_minutes": 10,
+      "rationale": "\"Obtain and examine all relevant information to assess validity of complaints\" requires nuanced judgment about causes and fairness that must remain with a human; ICMI reports complex complaint diagnosis commonly consumes ~8\u201312 minutes."
+    },
+    {
+      "task_id": 2591,
+      "description": "Recommend improvements in products, packaging, shipping, service, or billing methods and procedures to prevent future problems.",
+      "importance": 3.16,
+      "task_type": "Supplemental",
+      "ai_capability": "assist",
+      "driver": "per_week",
+      "human_minutes": 30,
+      "ai_minutes": 15,
+      "rationale": "Synthesizing and \"recommend[ing] improvements\" from recurring issues is analytic work AI can draft but humans should review and endorse; Forrester contact center continuous\u2011improvement practices suggest teams spend ~20\u201340 minutes weekly on feedback and trend reviews."
+    }
+  ]
+}

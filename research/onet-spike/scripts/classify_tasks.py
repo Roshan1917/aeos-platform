@@ -1,21 +1,23 @@
 """
-One-shot agent: classifies all 26 O*NET recruiter tasks for the cost calculator.
+One-shot agent: classifies all O*NET tasks for a given SOC for the cost calculator.
 
-For each task in SOC 13-1071.00, asks the LLM:
+For each task in the chosen occupation, asks the LLM:
   - ai_capability:    "auto" | "assist" | "human_only"
   - driver:           "per_application" | "per_phone_screen" | "per_hire" |
-                      "per_week" | "per_open_req"
-  - human_minutes:    baseline minutes a recruiter spends per unit
-  - ai_minutes:       minutes still spent if AI takes over (0 if fully auto,
-                      partial if assist, same as human_minutes if human_only)
+                      "per_week" | "per_open_req"  (generalized; the LLM maps
+                                                   the role's actual triggers)
+  - human_minutes:    baseline minutes a person spends per unit
+  - ai_minutes:       minutes still spent if AI takes over
   - rationale:        1-sentence reason citing the O*NET task wording
 
-Output written to: artifacts/task-profiles.json
+Output written to: artifacts/profiles/{soc}.json
 
-Run once:
-    python scripts/classify_tasks.py
+Run from the spike root:
+    python scripts/classify_tasks.py                  # default 13-1071.00
+    python scripts/classify_tasks.py 15-1252.00       # any other SOC
 
-The Streamlit calculator reads the JSON; it does NOT call the LLM during demo.
+The Streamlit calculator reads the JSON; it does NOT call the LLM during demo
+once the cache exists for that SOC.
 """
 
 from __future__ import annotations
@@ -29,10 +31,10 @@ from dotenv import load_dotenv
 from openai import AzureOpenAI
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from onet_data import active_source, recruiter_tasks  # noqa: E402
+from onet_data import active_source, occupation_meta, tasks_for  # noqa: E402
 
 SPIKE_ROOT = Path(__file__).resolve().parent.parent
-OUT_PATH = SPIKE_ROOT / "artifacts" / "task-profiles.json"
+PROFILES_DIR = SPIKE_ROOT / "artifacts" / "profiles"
 load_dotenv(SPIKE_ROOT / ".env")
 
 
@@ -78,86 +80,117 @@ SCHEMA = {
 }
 
 
-SYSTEM_PROMPT = """You are an HR operations analyst classifying U.S. Department
-of Labor O*NET tasks for a recruiting cost model that powers a live demo.
+SYSTEM_PROMPT = """You are a workforce-analytics analyst classifying U.S. Department
+of Labor O*NET tasks for a cost-and-automation model. You will be given the tasks
+for a specific occupation (e.g. Recruiter, Software Developer, Registered Nurse).
 
-For each task you're given, return a structured profile:
+For each task, return a structured profile:
 
   ai_capability — can a modern AI agent (LLM with tools) do this task?
-    "auto"       = AI can fully execute end-to-end with minimal human review
-                   Examples that ARE auto: parsing a resume, screening apps
-                   against criteria, generating outreach messages, scheduling
-                   interview times, populating ATS records, drafting offer
-                   letters, sending status notifications to candidates,
-                   matching applications against job requirements, basic
-                   reference-check email automation.
+    "auto"       = AI can fully execute end-to-end with minimal human review.
+                   Examples that ARE auto across roles: parsing/screening
+                   documents, drafting routine written output, scheduling,
+                   structured record-keeping, basic data lookup, standardized
+                   reporting, generating boilerplate text/code.
     "assist"     = AI prepares/proposes; a human reviews or signs off.
-                   Examples: drafting interview question banks, summarizing
-                   candidate pipelines for hiring managers, recommending who
-                   to advance, calibration analysis.
-    "human_only" = requires legal judgment, sensitive human conversation,
-                   physical presence, or final hiring authority.
-                   Examples: deciding on harassment/discrimination cases,
-                   conducting in-person interviews with sensitive content,
-                   final hire/reject decision with legal exposure,
-                   negotiating offers with senior candidates.
+                   Examples: drafting analysis a human will edit, summarizing
+                   complex documents, recommending courses of action.
+    "human_only" = requires legal/clinical/professional judgment, sensitive
+                   human conversation, physical presence, or final authority
+                   with liability.
 
-  driver — what triggers the task? Pick the MOST APPROPRIATE driver:
-    "per_application"   = scales with applications received (resume review,
-                          application matching, app-stage candidate comms)
-    "per_phone_screen"  = scales with phone/initial screens conducted
-                          (the screen itself, screen-summary writeups,
-                          scheduling the screen)
-    "per_hire"          = scales with finalized hires (offer paperwork,
-                          background checks, onboarding paperwork,
-                          reference checks for finalists, hiring records)
-    "per_week"          = a constant weekly load regardless of pipeline
-                          (policy/EEO compliance reading, weekly metrics
-                          reporting, employee relations escalations)
-    "per_open_req"      = scales with the number of open requisitions
-                          (job-description authoring, hiring-manager
-                          calibration meetings, sourcing strategy per role)
+  driver — what triggers the task? Pick the MOST APPROPRIATE driver from these
+  five generalized options. Map them sensibly to the occupation's actual work:
+    "per_application"   = scales with raw incoming work items
+                          (resumes for a recruiter; tickets for an engineer;
+                          calls for a support rep; patients for a nurse)
+    "per_phone_screen"  = scales with each direct human interaction
+                          (phone screens for recruiters; consultations for
+                          nurses; client meetings for sales)
+    "per_hire"          = scales with each closed/delivered outcome
+                          (hires for recruiters; deployments for engineers;
+                          deals closed for sales; surgeries for surgeons)
+    "per_week"          = a constant weekly load regardless of volume
+                          (compliance reading, weekly metrics, regulatory
+                          updates, ongoing supervision)
+    "per_open_req"      = scales with active projects / accounts / roles
+                          (open job reqs for recruiters; active projects
+                          for managers; open cases for analysts)
 
-  human_minutes — realistic minutes a human recruiter spends per UNIT of
-    the driver. Use industry-typical estimates (SHRM, LinkedIn Talent
-    Solutions). Examples: a resume review = 3-5 min per application; a
-    phone screen = 30 min per screen; a full offer-paperwork cycle =
-    60-120 min per hire; EEO/policy reading = 60-120 min per week.
+  human_minutes — realistic minutes a human spends per UNIT of the driver.
+    Use the relevant professional body's typical benchmark for THIS occupation:
+
+      HR/Recruiting:           SHRM, LinkedIn Talent Solutions, ATS vendor data
+      Software/Engineering:    IEEE, Stack Overflow Developer Survey, DORA
+      Healthcare/Nursing:      NCBI/PubMed time-motion studies, ANA workload
+      Sales:                   Gartner, SiriusDecisions, Salesforce State-of-Sales
+      Accounting/Finance:      AICPA, IMA productivity studies
+      Education/Teaching:      NEA, RAND education research, BLS time-use
+      Customer Service:        Forrester, ICMI agent productivity studies
+      Legal:                   ABA, Thomson Reuters, ALM legal-ops surveys
+      Other:                   BLS American Time Use Survey, OECD productivity
 
   ai_minutes — minutes still spent on the task if AI handles its portion.
-    "auto"       => 0-2 min (allow ~1-2 min for spot-checking output)
+    "auto"       => 0-2 min (allow ~1-2 min for spot-checking)
     "assist"     => roughly 30-50% of human_minutes
     "human_only" => equal to human_minutes (AI cannot reduce it)
 
-  rationale — ONE short sentence justifying the classification, quoting
-    key words from the O*NET task description so a reviewer can audit it.
+  rationale — ONE sentence with TWO things:
+    (a) WHY the AI capability label fits (quote key words from the O*NET
+        task description), AND
+    (b) WHICH benchmark/source your minutes estimate is anchored to
+        (name the professional body — e.g. "SHRM benchmarks suggest
+        ~5 min per resume review" or "IEEE time-motion data: ~15 min
+        per code review").
 
-HARD REQUIREMENTS — read carefully before responding:
+HARD REQUIREMENTS:
 
-1. DRIVER DIVERSITY IS MANDATORY. Across the 26 tasks you'll be given,
-   EVERY one of the 5 drivers must appear at least once. If your output
-   uses only 1-2 drivers, you are wrong and must reclassify. A recruiter's
-   work genuinely spans all 5 drivers — application review scales with
-   apps, paperwork scales with hires, policy reading is weekly, etc.
+1. DRIVER DIVERSITY. Across all tasks of this occupation, EVERY one of the 5
+   drivers should appear at least once when sensible. Real jobs span all 5.
+   In particular: if ANY task description contains words like "interview",
+   "consultation", "meeting with", "patient encounter", "call with client",
+   that task should use `per_phone_screen` (direct human interactions).
 
-2. AT LEAST 4 TASKS MUST BE "auto". Modern LLM agents in 2026 can fully
-   handle resume parsing, application screening, scheduling, basic outreach,
-   record-keeping, and candidate communication. Be honest: not every task
-   needs a human. Reserve "human_only" for tasks that genuinely require
-   legal judgment, sensitive conversations, or final hiring authority.
+2. AT LEAST 3 TASKS MUST BE "human_only" wherever the occupation involves
+   sensitive judgment. Use `human_only` for tasks containing words like:
+   "harassment", "discrimination", "exit interview", "termination",
+   "grievance", "disciplinary", "negotiate offer", "diagnose", "prescribe",
+   "legal compliance", "audit sign-off", "regulatory certification",
+   "performance review with employee", "in-person counseling". These
+   carry legal liability or require human presence and cannot be safely
+   automated by 2026 AI.
 
-3. Don't invent O*NET Task IDs. Use only the IDs given.
+3. AT LEAST 4 TASKS MUST BE "auto" wherever the occupation has obvious AI-
+   amenable work (paperwork, standardized communications, scheduling, lookups,
+   document summarization). Be honest about what 2026 LLMs can do.
 
-4. Return one profile for EVERY task given. Do not skip any.
+4. USE OCCUPATION-APPROPRIATE BENCHMARKS in the rationale. For an HR role
+   cite SHRM or LinkedIn Talent Solutions — NOT IEEE. For software cite
+   IEEE or Stack Overflow — NOT SHRM. Match the source to the field.
+
+5. Don't invent O*NET Task IDs. Use only the IDs given.
+
+6. Return one profile for EVERY task given. Do not skip any.
 """
 
 
-def main() -> int:
-    tasks = recruiter_tasks()
-    print(f"Classifying {len(tasks)} tasks (source: {active_source().upper()})...")
+def classify_soc(soc: str) -> dict:
+    """Run the classifier for one SOC. Returns the enriched JSON payload."""
+    tasks = tasks_for(soc)
+    if not tasks:
+        raise ValueError(
+            f"No tasks found for SOC {soc!r}. "
+            f"Either the SOC is wrong or O*NET has no task data for it."
+        )
+
+    meta = occupation_meta(soc)
+    print(f"Classifying {len(tasks)} tasks for SOC {soc} — {meta['title']}")
+    print(f"  (data source: {active_source().upper()})")
 
     user_msg = (
-        "Classify all of these O*NET recruiter tasks (SOC 13-1071.00):\n\n"
+        f"Occupation: {meta['title']} (SOC {soc}).\n"
+        f"Description: {meta['description']}\n\n"
+        f"Classify all of these O*NET tasks for this occupation:\n\n"
         + "\n".join(
             f"[{t['task_id']}] (importance {t['importance']}, {t['task_type']}) "
             f"{t['description']}"
@@ -174,7 +207,10 @@ def main() -> int:
     )
     deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4.1-nano")
 
-    resp = client.chat.completions.create(
+    # gpt-5+ reasoning models only accept the default temperature (1.0).
+    # gpt-4.x and older accept custom values; we set 0.1 for determinism.
+    is_reasoning_model = deployment.startswith("gpt-5") or deployment.startswith("o")
+    create_kwargs: dict = dict(
         model=deployment,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -188,16 +224,15 @@ def main() -> int:
                 "strict": False,
             },
         },
-        temperature=0.1,
     )
+    if not is_reasoning_model:
+        create_kwargs["temperature"] = 0.1
+
+    resp = client.chat.completions.create(**create_kwargs)
 
     payload = json.loads(resp.choices[0].message.content)
     profiles = payload.get("profiles", [])
-    print(f"Got {len(profiles)} profiles back.")
 
-    # Index by task_id and stitch O*NET descriptions back in so the JSON is
-    # self-contained (the calculator does not have to re-load O*NET data
-    # to render labels).
     by_id = {t["task_id"]: t for t in tasks}
     enriched = []
     for p in profiles:
@@ -213,15 +248,30 @@ def main() -> int:
             }
         )
 
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(json.dumps({"profiles": enriched}, indent=2))
-    print(f"Wrote {OUT_PATH}")
+    out_path = PROFILES_DIR / f"{soc}.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload_out = {
+        "soc": soc,
+        "title": meta["title"],
+        "description": meta["description"],
+        "source": active_source(),
+        "profiles": enriched,
+    }
+    out_path.write_text(json.dumps(payload_out, indent=2))
+    print(f"  -> wrote {out_path} ({len(enriched)} profiles)")
+    return payload_out
 
-    # Quick sanity summary.
-    cap_counts: dict[str, int] = {}
-    for e in enriched:
-        cap_counts[e["ai_capability"]] = cap_counts.get(e["ai_capability"], 0) + 1
-    print(f"AI capability distribution: {cap_counts}")
+
+def main() -> int:
+    soc = sys.argv[1] if len(sys.argv) > 1 else "13-1071.00"
+    payload = classify_soc(soc)
+    caps: dict[str, int] = {}
+    drivers: dict[str, int] = {}
+    for p in payload["profiles"]:
+        caps[p["ai_capability"]] = caps.get(p["ai_capability"], 0) + 1
+        drivers[p["driver"]] = drivers.get(p["driver"], 0) + 1
+    print(f"  AI capability mix: {caps}")
+    print(f"  Driver mix: {drivers}")
     return 0
 
 
